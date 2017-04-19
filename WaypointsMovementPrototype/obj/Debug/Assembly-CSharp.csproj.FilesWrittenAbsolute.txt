@@ -1,0 +1,17 @@
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/UnityEngine.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/UnityEditor.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/UnityEngine.Networking.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/UnityEngine.UI.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Mono.Cecil.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Unity.SerializationLogic.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Unity.DataContract.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/ICSharpCode.NRefactory.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Unity.UNetWeaver.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Unity.UNetWeaver.dll.mdb
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Unity.CecilTools.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Mono.Cecil.Pdb.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Mono.Cecil.Mdb.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Assembly-CSharp.dll.mdb
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/Temp/bin/Debug/Assembly-CSharp.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/obj/Debug/Assembly-CSharp.dll
+/Users/nickveselov/WaypointsMovement/WaypointsMovementPrototype/obj/Debug/Assembly-CSharp.dll.mdb
