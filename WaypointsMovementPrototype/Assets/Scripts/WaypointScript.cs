@@ -2,7 +2,7 @@
 using System.Collections;
 
 public class WaypointScript : MonoBehaviour {
-	public float reachingDistance;
+	public bool isStrict;
 	// Use this for initialization
 	void Start () {
 	
