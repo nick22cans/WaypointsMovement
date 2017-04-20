@@ -1,22 +1,28 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+public enum MovementType {path, loop, reverse_loop};
+
 public class MovementScript : MonoBehaviour {
 	
 	public GameObject[] waypoints;
+
+	public MovementType movementType;
+
 	//rough amount of movement per frame
 	public float speed;
 	//distance calculation error amplitude
-	public float distance_sqrEpsilon;
+	public float distance_Epsilon;
 	//direction difference error while turning
 	public float direction_Epsilon;
 
 	public float lookAheadDistance;
-	public float rotationSpeed;
+	private float rotationSpeed;
 
 
 	private int m_currentWaypointIndex;
 	private Vector3 m_currentWaypoint;
+	private Vector3 m_nextWaypoint;
 	private bool m_waypointIsStrict;
 
 	private bool m_isMovingAlongTheRoute = false;
@@ -29,16 +35,41 @@ public class MovementScript : MonoBehaviour {
 
 	Vector3 m_directionChangeStep; 
 
+
+	private bool arrayReadingDirection = false;
+	private int overflowIndex;
+	private int lastIndex;
+
+
 	// Use this for initialization
 	void Start () {
 		SetUpRoute ();
+		rotationSpeed = speed / 10;
 	}
 
 	public void SetUpRoute()
 	{
 		if (waypoints.Length > 0)
 		{
-			m_currentWaypointIndex = -1;
+			if (movementType == MovementType.loop)
+				m_currentWaypointIndex = -1;
+			else if (movementType == MovementType.reverse_loop)
+			{
+				arrayReadingDirection = !arrayReadingDirection;
+
+				if (arrayReadingDirection)
+				{
+					m_currentWaypointIndex = -1;
+					overflowIndex = waypoints.Length;
+					lastIndex = overflowIndex - 1;
+				}
+				else
+				{
+					m_currentWaypointIndex = waypoints.Length;
+					overflowIndex = -1;
+					lastIndex = overflowIndex + 1;
+				}
+			}
 			if (SwitchToTheNextWaypoint ())
 			{
 				m_isMovingAlongTheRoute = true;
@@ -48,11 +79,24 @@ public class MovementScript : MonoBehaviour {
 
 	bool SwitchToTheNextWaypoint()
 	{
-		m_currentWaypointIndex++;
-		if (m_currentWaypointIndex == waypoints.Length)
+		if (arrayReadingDirection)
+		{
+			m_currentWaypointIndex++;
+		} else
+		{
+			m_currentWaypointIndex--;
+		}
+		
+		if (m_currentWaypointIndex == overflowIndex)
 			return false;
-		if (m_currentWaypointIndex != waypoints.Length - 1)
+		if (m_currentWaypointIndex != lastIndex)
+		{
 			m_thereIsAtLeastOneMoreWaypoint = true;
+			if (arrayReadingDirection)
+				m_nextWaypoint = waypoints [m_currentWaypointIndex + 1].transform.position;
+			else
+				m_nextWaypoint = waypoints [m_currentWaypointIndex - 1].transform.position;
+		}
 		else
 			m_thereIsAtLeastOneMoreWaypoint = false;
 
@@ -68,13 +112,13 @@ public class MovementScript : MonoBehaviour {
 	{
 		if (m_isTurning && m_thereIsAtLeastOneMoreWaypoint)
 		{
-			if (GetTwoLinesIntersection (transform.position, PredictPointInCurrentDirection(lookAheadDistance), m_currentWaypoint, waypoints [m_currentWaypointIndex + 1].transform.position))
+			if (GetTwoLinesIntersection (transform.position, PredictPointInCurrentDirection(lookAheadDistance), m_currentWaypoint, m_nextWaypoint))
 			{
 				float distanceToTheIntersection = GetDistanceToThePoint (m_intersectionPoint);
-				Vector3 crossWpDirection = GetDirectionFromOnePointToAnother (m_currentWaypoint, waypoints [m_currentWaypointIndex + 1].transform.position);
+				Vector3 crossWpDirection = GetDirectionFromOnePointToAnother (m_currentWaypoint, m_nextWaypoint);
 
 				float turnAmplitude = (lookAheadDistance - distanceToTheIntersection);
-				turnAmplitude = Mathf.Max(lookAheadDistance, lookAheadDistance * rotationSpeed);
+				turnAmplitude = Mathf.Min(turnAmplitude, lookAheadDistance * rotationSpeed);
 
 				m_lookAheadPoint = m_intersectionPoint + crossWpDirection * turnAmplitude;
 			}
@@ -85,18 +129,28 @@ public class MovementScript : MonoBehaviour {
 
 	bool WaypointIsReached()
 	{
-		if (m_waypointIsStrict && GetDistanceToThePoint (m_currentWaypoint) < distance_sqrEpsilon)
-				return true;
-		if (m_thereIsAtLeastOneMoreWaypoint)
+		if (m_waypointIsStrict)
 		{
-			Vector3 next_wp_direction = GetDirectionTowardsPoint (waypoints [m_currentWaypointIndex + 1].transform.position);
-			if (GetDistanceBetweenPoints (next_wp_direction, m_direction) < direction_Epsilon)
+			if (GetDistanceToThePoint (m_currentWaypoint) < distance_Epsilon)
 				return true;
-			if (GetDistanceToThePoint (m_intersectionPoint) < distance_sqrEpsilon)
+		}
+		else if (m_isTurning)
+		{
+			if (m_thereIsAtLeastOneMoreWaypoint || movementType == MovementType.loop || movementType == MovementType.reverse_loop)
+			{
+				Vector3 next_wp_direction = GetDirectionTowardsPoint (m_nextWaypoint);
+				if (GetDistanceBetweenPoints (next_wp_direction, m_direction) < direction_Epsilon)
+					return true;
+//				if (GetDistanceToThePoint (m_intersectionPoint) < distance_Epsilon)
+//					return true;
+//			} else if (movementType == MovementType.loop || movementType == MovementType.reverse_loop)
+//			{
+//				if (GetDistanceBetweenPoints (next_wp_direction, m_direction) < direction_Epsilon)
+//					return true;
+			}
+			if (GetDistanceToThePoint (m_currentWaypoint) < distance_Epsilon)
 				return true;
-		} 
-		if (GetDistanceToThePoint (m_currentWaypoint) < distance_sqrEpsilon)
-			return true;
+		}
 		return false;
 	}
 
@@ -132,8 +186,26 @@ public class MovementScript : MonoBehaviour {
 				{
 					if (!SwitchToTheNextWaypoint ()) 
 					{
-						m_isMovingAlongTheRoute = false;
-						transform.position = new Vector3 (m_currentWaypoint.x, transform.position.y, m_currentWaypoint.z);
+						switch (movementType)
+						{
+						case MovementType.path:
+							{
+								m_isMovingAlongTheRoute = false;
+							}
+							break;
+						case MovementType.loop:
+							{
+								SetUpRoute ();
+							}
+							break;
+						case MovementType.reverse_loop:
+							{
+								SetUpRoute ();
+							}
+							break;
+						default:
+							break;
+						}
 
 					}
 				}
@@ -157,7 +229,7 @@ public class MovementScript : MonoBehaviour {
 		
 
 	float GetDistanceToThePoint(Vector3 point) {
-		return ((point - transform.position).magnitude);
+		return (GetDistanceBetweenPoints (transform.position, point));
 	}
 
 	Vector3 GetDirectionFromOnePointToAnother(Vector3 from, Vector3 to)
@@ -181,8 +253,7 @@ public class MovementScript : MonoBehaviour {
 		
 	bool GetTwoLinesIntersection(Vector3 l1_s, Vector3 l1_e, Vector3 l2_s, Vector3 l2_e)
 	{
-		if (GetDistanceBetweenPoints (l1_e, l2_s) < distance_sqrEpsilon)
-			return false;
+
 		float a1 = l1_e.z - l1_s.z,
 		b1 = l1_s.x - l1_e.x,
 		c1 = a1 * l1_s.x + b1 * l1_s.z;
