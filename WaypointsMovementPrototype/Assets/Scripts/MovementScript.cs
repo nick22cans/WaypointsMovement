@@ -9,7 +9,7 @@ public class MovementScript : MonoBehaviour {
 	//distance calculation error amplitude
 	public float distance_sqrEpsilon;
 	//direction difference error while turning
-	public float direction_sqrEpsilon;
+	public float direction_Epsilon;
 
 	public float lookAheadDistance;
 
@@ -31,7 +31,7 @@ public class MovementScript : MonoBehaviour {
 	private float m_previousFrameDistance;
 	private float m_currentFrameDistance;
 
-	float m_rotationStepsNumber = 10;
+	float m_rotationStepsNumber = 100;
 	Vector3 m_directionChangeStep; 
 
 	//private float previousFrameDistance;
@@ -66,8 +66,13 @@ public class MovementScript : MonoBehaviour {
 		m_currentWaypoint = waypoints [m_currentWaypointIndex].transform.position;
 		m_waypointIsStrict = (waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().isStrict;
 
-//		if (!m_isTurning)
+		if (!m_switchingToTheNextWaypoint || m_waypointIsStrict)
 			m_direction = GetDirectionTowardsWaypoint ();
+		if (m_switchingToTheNextWaypoint)
+		{
+			m_directionChangeStep = (GetDirectionTowardsPoint (m_currentWaypoint) - m_direction) / m_rotationStepsNumber;
+		}
+
 		m_isTurning = false;
 		return true;
 	}
@@ -119,7 +124,6 @@ public class MovementScript : MonoBehaviour {
 			if (m_thereIsAtLeastOneMoreWaypoint)
 			{
 				m_switchingToTheNextWaypoint = true;
-				m_directionChangeStep = (GetDirectionTowardsPoint (waypoints [m_currentWaypointIndex + 1].transform.position) - m_direction) / m_rotationStepsNumber;
 			}
 			return true;
 		}
@@ -147,17 +151,22 @@ public class MovementScript : MonoBehaviour {
 		
 	void PerformStep()
 	{
-		if (m_switchingToTheNextWaypoint = true)
+		UpdateLookAheadPoint ();
+
+		if (m_switchingToTheNextWaypoint == true)
 		{
-			if (GetSqrDistanceBetweenPoints (m_direction, GetDirectionTowardsWaypoint ()) < direction_sqrEpsilon)
+			Vector3 wp_dir = GetDirectionTowardsWaypoint ();
+			if (GetDistanceBetweenPoints (m_direction, wp_dir) < direction_Epsilon)
 				m_switchingToTheNextWaypoint = false;
 			else
 				m_direction += m_directionChangeStep;
+		} else
+		{
+			m_direction = GetDirectionTowardsPoint (m_lookAheadPoint);
 		}
 	
 
-		UpdateLookAheadPoint ();
-		m_direction = GetDirectionTowardsPoint (m_lookAheadPoint);
+
 		transform.position += m_direction * speed;
 
 		if (!m_isTurning)
