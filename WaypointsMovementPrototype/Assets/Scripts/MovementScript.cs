@@ -5,19 +5,21 @@ public enum MovementType {path, loop, reverse_loop};
 
 public class MovementScript : MonoBehaviour {
 	
-	public GameObject[] waypoints;
+	public GameObject[] m_waypoints;
 
 	public MovementType movementType;
 
 	//rough amount of movement per frame
-	public float speed;
+	public float m_speed;
 	//distance calculation error amplitude
 	public float distance_Epsilon;
 	//direction difference error while turning
 	private float direction_Epsilon;
 
 	public float lookAheadDistance;
-	private float rotationSpeed;
+
+	public bool m_drawGizmos;
+	private float rotationm_speed;
 
 
 	private int m_currentWaypointIndex;
@@ -33,7 +35,8 @@ public class MovementScript : MonoBehaviour {
 
 	private Vector3 m_intersectionPoint;
 	private Vector3 m_direction;
-	private Vector3 m_lookAheadPoint;
+	private Vector3 m_wpDirection;
+	public Vector3 m_lookAheadPoint;
 
 	Vector3 m_directionChangeStep; 
 
@@ -46,20 +49,20 @@ public class MovementScript : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		SetUpRoute ();
-		rotationSpeed = speed / 10;
-		direction_Epsilon = speed / 3;
+		rotationm_speed = m_speed / 10;
+		direction_Epsilon = m_speed / 3;
 	}
 
 	public void SetUpRoute()
 	{
-		if (waypoints.Length > 0)
+		if (m_waypoints.Length > 0)
 		{
 			if (movementType == MovementType.path 
 				|| movementType == MovementType.loop)
 			{
 				arrayReadingDirection = true;
 				m_currentWaypointIndex = -1;
-				overflowIndex = waypoints.Length;
+				overflowIndex = m_waypoints.Length;
 				lastIndex = overflowIndex - 1;
 			}
 				
@@ -70,24 +73,24 @@ public class MovementScript : MonoBehaviour {
 				if (arrayReadingDirection)
 				{
 					m_currentWaypointIndex = -1;
-					overflowIndex = waypoints.Length;
+					overflowIndex = m_waypoints.Length;
 					lastIndex = overflowIndex - 1;
 				}
 				else
 				{
-					m_currentWaypointIndex = waypoints.Length;
+					m_currentWaypointIndex = m_waypoints.Length;
 					overflowIndex = -1;
 					lastIndex = overflowIndex + 1;
 				}
 			}
-			if (SwitchToTheNextWaypointsSegment ())
+			if (SwitchToTheNextm_waypointsSegment ())
 			{
 				m_isMovingAlongTheRoute = true;
 			}
 		}
 	}
 
-	bool SwitchToTheNextWaypointsSegment()
+	bool SwitchToTheNextm_waypointsSegment()
 	{
 		if (arrayReadingDirection)
 			m_currentWaypointIndex++;
@@ -98,12 +101,13 @@ public class MovementScript : MonoBehaviour {
 			return false;
 
 		//debug
-		m_currentDebugWaypoint = waypoints[m_currentWaypointIndex];
+		m_currentDebugWaypoint = m_waypoints[m_currentWaypointIndex];
 		//
-		m_currentWaypoint = waypoints [m_currentWaypointIndex].transform.position;
-		m_waypointIsStrict = (waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().isStrict;
+		m_currentWaypoint = m_waypoints [m_currentWaypointIndex].transform.position;
+		if ((m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ())
+			m_waypointIsStrict = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().isStrict;
 		m_direction = GetDirectionTowardsWaypoint ();
-
+		 
 		m_isTurning = false;
 
 		//next waypoint
@@ -111,12 +115,13 @@ public class MovementScript : MonoBehaviour {
 		{
 			m_thereIsAtLeastOneMoreWaypoint = true;
 			if (arrayReadingDirection)
-				m_nextWaypoint = waypoints [m_currentWaypointIndex + 1].transform.position;
+				m_nextWaypoint = m_waypoints [m_currentWaypointIndex + 1].transform.position;
 			else
-				m_nextWaypoint = waypoints [m_currentWaypointIndex - 1].transform.position;
+				m_nextWaypoint = m_waypoints [m_currentWaypointIndex - 1].transform.position;
 
 			m_crossWpDirection = GetDirectionFromOnePointToAnother (m_currentWaypoint, m_nextWaypoint);
-		} else
+		} 
+		else
 		{
 			m_thereIsAtLeastOneMoreWaypoint = false;
 			if (movementType == MovementType.path)
@@ -134,7 +139,7 @@ public class MovementScript : MonoBehaviour {
 				m_currentWaypoint, m_nextWaypoint))
 			{
 				float turnAmplitude = (lookAheadDistance - GetDistanceToThePoint (m_intersectionPoint));
-				turnAmplitude = Mathf.Min(turnAmplitude, lookAheadDistance * rotationSpeed);
+				turnAmplitude = Mathf.Min(turnAmplitude, lookAheadDistance * rotationm_speed);
 
 				m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * turnAmplitude;
 			}
@@ -170,21 +175,30 @@ public class MovementScript : MonoBehaviour {
 	void Move()
 	{
 		UpdateLookAheadPoint ();
-
 		m_direction = GetDirectionTowardsPoint (m_lookAheadPoint);
+		m_wpDirection = GetDirectionTowardsWaypoint ();
 
-		transform.position += m_direction * speed;
-
-		if (!m_isTurning && !m_waypointIsStrict )
+		// (Vector2.Angle (new Vector2 (m_direction.x, m_direction.z), new Vector2 (m_wpDirection.x, m_wpDirection.z)) > 90 && !m_isTurning)
+		if (!m_isTurning)
 		{
-			
-			if (GetDistanceToThePoint (m_currentWaypoint) < lookAheadDistance)
-			{
-				m_isTurning = true;
-				//update lookahead for the current waypoint
-				m_intersectionPoint = m_currentWaypoint;
-				m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * speed;
-				m_direction = GetDirectionTowardsPoint (m_lookAheadPoint);
+			m_direction = m_wpDirection;
+			m_lookAheadPoint = m_direction * lookAheadDistance;
+		}
+
+		transform.position += m_direction * m_speed;
+
+		if (!m_isTurning)
+		{
+			if (!m_waypointIsStrict)
+			{			
+				if (GetDistanceToThePoint (m_currentWaypoint) < lookAheadDistance)
+				{
+					m_isTurning = true;
+					//update lookahead for the current waypoint
+					m_intersectionPoint = m_currentWaypoint;
+					m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * m_speed;
+					m_direction = GetDirectionTowardsPoint (m_lookAheadPoint);
+				}
 			}
 		}
 	}
@@ -223,7 +237,7 @@ public class MovementScript : MonoBehaviour {
 			{
 				if (CheckWaypointReaching ()) 
 				{
-					if (!SwitchToTheNextWaypointsSegment ()) 
+					if (!SwitchToTheNextm_waypointsSegment ()) 
 					{
 						HandleRouteFinishing ();
 					}
@@ -233,11 +247,14 @@ public class MovementScript : MonoBehaviour {
 	}
 
 	void OnDrawGizmos() {
-		Gizmos.color = Color.yellow;
-		Gizmos.DrawSphere (m_lookAheadPoint, 1f);
-		Gizmos.DrawLine (m_lookAheadPoint, transform.position);
+		if (m_drawGizmos)
+		{
+			Gizmos.color = Color.yellow;
+			Gizmos.DrawSphere (m_lookAheadPoint, 1f);
+			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
 
-		Gizmos.DrawCube (PredictPointInCurrentDirection (lookAheadDistance), Vector3.one);
+			Gizmos.DrawCube (PredictPointInCurrentDirection (lookAheadDistance), Vector3.one);
+		}
 	}
 		
 	float GetDistanceBetweenPoints(Vector3 p1, Vector3 p2){

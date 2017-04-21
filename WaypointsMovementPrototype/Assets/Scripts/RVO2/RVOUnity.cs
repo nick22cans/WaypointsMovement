@@ -111,7 +111,7 @@ public class RVOUnityInstance {
 		Init();
 	}
 
-	private float _neighbourDistance = 5.0f;
+	private float _neighbourDistance = 50.0f;
 	private int _maxNeighbours = 16;
 	private float _timeHorizon = 1.0f;//40.0f;
 	private float _timeHorizonObstacles = 1.0f;//40.0f;
@@ -227,6 +227,7 @@ public class RVOUnity : MonoBehaviour {
 	public float m_radius;
 	public float m_impatience;
 	public bool m_static;
+	public bool m_drawGizmos;
 	private int m_id;
 	private Vector3 m_expectedDirection;
 	private bool m_lastMoveSuccessful;
@@ -255,6 +256,8 @@ public class RVOUnity : MonoBehaviour {
 		return _v * cos + new RVO.Vector2(_v.y(), -_v.x()) * sin;
 	}
 	public void UpdatePosition() {
+		if (m_radius != m_instance.m_instance.getAgentRadius (m_id))
+			m_instance.m_instance.setAgentRadius (m_id, m_radius);
 		var newPos = transform.position.XZ();
 		var oldPos = m_instance.GetAgentPosition(m_id).XZ();
 		var velocity = (newPos - oldPos) / m_instance.NextTimeStep;
@@ -278,6 +281,8 @@ public class RVOUnity : MonoBehaviour {
 		m_instance.m_instance.setAgentVelocity(m_id, new RVO.Vector2());
 		m_instance.m_instance.setAgentPrefVelocity(m_id, new RVO.Vector2());
 	}
+
+
 	public void Sync() {
 		var pos = m_instance.GetAgentPosition(m_id);
 		pos.y = transform.position.y;
@@ -291,9 +296,12 @@ public class RVOUnity : MonoBehaviour {
 				m_instance.SetAgentPosition(m_id, pos);
 			}
 			transform.position = pos;
+			m_instance.SetAgentPosition(m_id, pos);
 		}
 		m_pos = m_instance.GetAgentPosition(m_id);
 	}
+
+
 	void OnDestroy() {
 		m_instance.m_removes.Add(m_id);
 		m_id = -1;
@@ -320,32 +328,41 @@ public class RVOUnity : MonoBehaviour {
 
 	#if UNITY_EDITOR
 	void OnDrawGizmos() {
-		if (m_id == -1 || m_instance == null) return;
+		if (m_drawGizmos)
+		{
+			if (m_id == -1 || m_instance == null)
+				return;
 
-		if (m_id == 0) {
-			Gizmos.color = Color.black;
-			foreach (var o in m_instance.m_obstacles) {
-				Gizmos.DrawSphere(o.m_position, 0.15f);
-				for (int i = 0; i < 4; i ++) {
-					Gizmos.DrawSphere(o.Corner(i), 0.05f);
-					Gizmos.DrawLine(o.Corner(i), o.Corner((i+1)&3));
+			if (m_id == 0)
+			{
+				Gizmos.color = Color.black;
+				foreach (var o in m_instance.m_obstacles)
+				{
+					Gizmos.DrawSphere (o.m_position, 0.15f);
+					for (int i = 0; i < 4; i++)
+					{
+						Gizmos.DrawSphere (o.Corner (i), 0.05f);
+						Gizmos.DrawLine (o.Corner (i), o.Corner ((i + 1) & 3));
+					}
 				}
 			}
-		}
 
-		var pos = m_instance.m_instance.getAgentPosition(m_id).XZ(); pos.y = transform.position.y;
-		var rad = m_instance.m_instance.getAgentRadius(m_id);
-		var imp = m_impatience;
-		var clr = s_gizmoColour;
-		clr.g *= Mathf.Max(0, 1-imp*10); clr.b *= 1-imp;
-		Gizmos.color = clr;
-		Gizmos.DrawSphere(pos, rad);
-		Gizmos.color = Color.red;
-		Gizmos.DrawLine(pos, pos + m_instance.m_instance.getAgentVelocity(m_id).XZ());
-		Gizmos.color = Color.yellow;
-		Gizmos.DrawLine(pos, pos + m_instance.m_instance.getAgentPrefVelocity(m_id).XZ());
-		Gizmos.color = m_static ? Color.red : (m_lastMoveSuccessful ? Color.green : Color.blue);
-		Gizmos.DrawSphere(pos, rad*0.1f);
+			var pos = m_instance.m_instance.getAgentPosition (m_id).XZ ();
+			pos.y = transform.position.y;
+			var rad = m_instance.m_instance.getAgentRadius (m_id);
+			var imp = m_impatience;
+			var clr = s_gizmoColour;
+			clr.g *= Mathf.Max (0, 1 - imp * 10);
+			clr.b *= 1 - imp;
+			Gizmos.color = clr;
+			Gizmos.DrawSphere (pos, rad);
+			Gizmos.color = Color.red;
+			Gizmos.DrawLine (pos, pos + m_instance.m_instance.getAgentVelocity (m_id).XZ ());
+			Gizmos.color = Color.yellow;
+			Gizmos.DrawLine (pos, pos + m_instance.m_instance.getAgentPrefVelocity (m_id).XZ ());
+			Gizmos.color = m_static ? Color.red : (m_lastMoveSuccessful ? Color.green : Color.blue);
+			Gizmos.DrawSphere (pos, rad * 0.1f);
+		}
 	}
 	#endif
 }
