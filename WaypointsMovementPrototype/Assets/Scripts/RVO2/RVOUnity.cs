@@ -112,11 +112,11 @@ public class RVOUnityInstance {
 	}
 
 	float _neighbourDistance = 50.0f;
-	private int _maxNeighbours = 16;
-	private float _timeHorizon = 1.0f;//40.0f;
+	private int _maxNeighbours = 50;
+	private float _timeHorizon = 50.0f;//40.0f;
 	private float _timeHorizonObstacles = 1.0f;//40.0f;
 	private float _defaultRadius = 0.5f;
-	private float _maxSpeed = 8.0f;//5.0f;
+	private float _maxSpeed = 10.0f;//5.0f;
 	public void Init() {
 		m_instance.setAgentDefaults(_neighbourDistance, _maxNeighbours, _timeHorizon,_timeHorizonObstacles, _defaultRadius, _maxSpeed, new RVO.Vector2());
 	}
@@ -263,7 +263,7 @@ public class RVOUnity : MonoBehaviour {
 		var velocity = (newPos - oldPos) / m_instance.NextTimeStep;
 
 		float randomness = 0;//0.3f;
-		float smoothness = 0.6f;
+		float smoothness = 0.7f;
 
 		float theta = UnityEngine.Random.Range(-1.0f, 1.0f) * randomness;
 		velocity = RotateVector(velocity, theta);

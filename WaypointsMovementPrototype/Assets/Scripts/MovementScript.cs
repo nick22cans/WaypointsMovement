@@ -35,9 +35,17 @@ public class MovementScript : MonoBehaviour {
 	private Vector3 m_intersectionPoint;
 	private Vector3 m_direction;
 	private Vector3 m_wpDirection;
-	public Vector3 m_lookAheadPoint;
+	private Vector3 m_lookAheadPoint;
 
 	Vector3 m_directionChangeStep; 
+
+
+	public float dist;
+//	public Vector3 m_rvoFrom;
+//	public Vector3 m_rvoTo;
+//	public Vector3 m_rvoDesired;
+//	public Vector3 m_rvoCompromise;
+
 
 
 	private bool arrayReadingDirection = false;
@@ -250,7 +258,13 @@ public class MovementScript : MonoBehaviour {
 			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
 
 			Gizmos.DrawCube (PredictPointInCurrentDirection (lookAheadDistance), Vector3.one);
+
 		}
+//
+//		Gizmos.DrawLine (m_rvoFrom, m_rvoTo);
+//		Gizmos.DrawLine (m_rvoFrom, m_rvoDesired);
+//		Gizmos.color = Color.cyan;
+//		Gizmos.DrawLine (m_rvoFrom, m_rvoCompromise);
 	}
 		
 	float GetDistanceBetweenPoints(Vector3 p1, Vector3 p2){
