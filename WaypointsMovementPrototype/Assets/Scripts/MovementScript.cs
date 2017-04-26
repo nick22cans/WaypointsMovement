@@ -23,7 +23,6 @@ public class MovementScript : MonoBehaviour {
 
 
 	private int m_currentWaypointIndex;
-	private GameObject m_currentDebugWaypoint;
 	private Vector3 m_currentWaypoint;
 	private Vector3 m_nextWaypoint;
 	private Vector3 m_crossWpDirection;
@@ -99,9 +98,6 @@ public class MovementScript : MonoBehaviour {
 		
 		if (m_currentWaypointIndex == overflowIndex)
 			return false;
-
-		//debug
-		m_currentDebugWaypoint = m_waypoints[m_currentWaypointIndex];
 		//
 		m_currentWaypoint = m_waypoints [m_currentWaypointIndex].transform.position;
 		if ((m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ())

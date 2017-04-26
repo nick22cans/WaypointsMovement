@@ -111,7 +111,7 @@ public class RVOUnityInstance {
 		Init();
 	}
 
-	private float _neighbourDistance = 50.0f;
+	float _neighbourDistance = 50.0f;
 	private int _maxNeighbours = 16;
 	private float _timeHorizon = 1.0f;//40.0f;
 	private float _timeHorizonObstacles = 1.0f;//40.0f;
@@ -222,6 +222,7 @@ public class RVOUnity : MonoBehaviour {
 	private RVOUnityInstance m_instance;
 
 	public Vector3 m_pos;
+	private Vector3 m_expectedDirection;
 
 	public string m_instanceName;
 	public float m_radius;
@@ -229,7 +230,6 @@ public class RVOUnity : MonoBehaviour {
 	public bool m_static;
 	public bool m_drawGizmos;
 	private int m_id;
-	private Vector3 m_expectedDirection;
 	private bool m_lastMoveSuccessful;
 	public int Id { get { return m_id; } }
 	void Start() {
@@ -283,6 +283,8 @@ public class RVOUnity : MonoBehaviour {
 	}
 
 
+
+
 	public void Sync() {
 		var pos = m_instance.GetAgentPosition(m_id);
 		pos.y = transform.position.y;
@@ -291,7 +293,8 @@ public class RVOUnity : MonoBehaviour {
 		if (!m_lastMoveSuccessful)
 			m_instance.SetAgentPosition(m_id, transform.position);
 		else {
-			if (m_impatience > 0) {
+			if (m_impatience > 0) 
+			{
 				pos = transform.position * m_impatience + pos * (1-m_impatience);
 				m_instance.SetAgentPosition(m_id, pos);
 			}
@@ -300,6 +303,8 @@ public class RVOUnity : MonoBehaviour {
 		}
 		m_pos = m_instance.GetAgentPosition(m_id);
 	}
+
+
 
 
 	void OnDestroy() {
