@@ -263,7 +263,7 @@ public class RVOUnity : MonoBehaviour {
 		var velocity = (newPos - oldPos) / m_instance.NextTimeStep;
 
 		float randomness = 0;//0.3f;
-		float smoothness = 0.9f;
+		float smoothness = 0.6f;
 
 		float theta = UnityEngine.Random.Range(-1.0f, 1.0f) * randomness;
 		velocity = RotateVector(velocity, theta);

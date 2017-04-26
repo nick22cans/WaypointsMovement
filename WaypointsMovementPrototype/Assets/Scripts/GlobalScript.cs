@@ -5,7 +5,7 @@ public class GlobalScript : MonoBehaviour {
 
 	public bool m_printStatus;
 
-	public float m_distanceFraction = 0.8f;
+	public float m_distanceFraction = 0.6f;
 	private float m_radius;
 	private float m_rvoDisposition;
 	private float m_adjustmentDistance;
@@ -26,16 +26,17 @@ public class GlobalScript : MonoBehaviour {
 		m_desiredPosition = _who.transform.position;
 		m_rvoDisposition = GetDistanceBetweenPoints (_to, m_desiredPosition);
 		m_adjustmentDistance = Mathf.Min (m_radius, m_rvoDisposition);
+			print (m_adjustmentDistance);
+		m_adjustmentDistance = Mathf.Min (m_distanceFraction * m_adjustmentDistance, 0.05f * m_radius);
 
 		//m_adjustmentDistance *= 0.75f;
 
-		if (m_radius > 0)
+		if (m_adjustmentDistance > 0)
 		{
 			m_adjustmentDirection = GetDirectionFromOnePointToAnother (_to, m_desiredPosition);	
-			_to += m_adjustmentDistance * m_adjustmentDirection * m_distanceFraction;
+			_to += m_adjustmentDistance * m_adjustmentDirection;
 			//_to = m_desiredPosition;
-			if (m_printStatus)
-				print(m_rvoDisposition);
+
 		}
 		else
 		{
