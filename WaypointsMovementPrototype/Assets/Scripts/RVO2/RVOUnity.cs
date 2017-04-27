@@ -111,7 +111,7 @@ public class RVOUnityInstance {
 		Init();
 	}
 
-	float _neighbourDistance = 50.0f;
+	float _neighbourDistance = 20.0f;
 	private int _maxNeighbours = 50;
 	private float _timeHorizon = 50.0f;//40.0f;
 	private float _timeHorizonObstacles = 1.0f;//40.0f;
@@ -222,6 +222,9 @@ public class RVOUnity : MonoBehaviour {
 	private RVOUnityInstance m_instance;
 
 	public Vector3 m_pos;
+
+
+
 	private Vector3 m_expectedDirection;
 
 	public string m_instanceName;
@@ -263,7 +266,7 @@ public class RVOUnity : MonoBehaviour {
 		var velocity = (newPos - oldPos) / m_instance.NextTimeStep;
 
 		float randomness = 0;//0.3f;
-		float smoothness = 0.7f;
+		float smoothness = 0.9f;
 
 		float theta = UnityEngine.Random.Range(-1.0f, 1.0f) * randomness;
 		velocity = RotateVector(velocity, theta);
@@ -293,6 +296,8 @@ public class RVOUnity : MonoBehaviour {
 		if (!m_lastMoveSuccessful)
 			m_instance.SetAgentPosition(m_id, transform.position);
 		else {
+			UpdateImpatience (pos);
+
 			if (m_impatience > 0) 
 			{
 				pos = transform.position * m_impatience + pos * (1-m_impatience);
@@ -304,7 +309,51 @@ public class RVOUnity : MonoBehaviour {
 		m_pos = m_instance.GetAgentPosition(m_id);
 	}
 
+	public bool m_staticImpatience;
 
+	private float m_impCoeff;
+	public float m_impSmall_Coeff = 0.005f;
+	public float m_impMedium_Coeff = 0.05f;
+	public float m_impHigh_Coeff = 0.1f;
+
+
+	private float m_impDispThreshold;
+	public float m_impSmall_DispThreshold = 0.4f;
+	public float m_impMedium_DispThreshold = 0.5f;
+	public float m_impHigh_DispThreshold = 0.6f;
+
+	private float m_rvoDisposition;
+	private float m_rvoDispOverflow;
+
+	void UpdateImpatience(Vector3 pos)
+	{
+		if (!m_staticImpatience)
+		{
+			m_rvoDisposition = GetDistanceBetweenPoints (pos, transform.position);	
+
+			if (m_impatience < 0.25f)
+			{
+				m_impCoeff = m_impSmall_Coeff;
+				m_impDispThreshold = m_impSmall_DispThreshold;
+			}
+			else if (m_impatience < 0.5f)
+				{
+					m_impCoeff = m_impMedium_Coeff;
+					m_impDispThreshold = m_impMedium_DispThreshold;
+				//print(
+				}
+				else
+				{
+					m_impCoeff = m_impHigh_Coeff;
+					m_impDispThreshold = m_impHigh_DispThreshold;
+				}
+
+			m_rvoDispOverflow = m_rvoDisposition - m_impDispThreshold;
+			m_impatience += m_impCoeff * m_rvoDispOverflow;
+			m_impatience = Mathf.Max (m_impatience, 0);
+			m_impatience = Mathf.Min (m_impatience, 1);
+		}
+	}
 
 
 	void OnDestroy() {
@@ -370,4 +419,17 @@ public class RVOUnity : MonoBehaviour {
 		}
 	}
 	#endif
+
+
+
+	//Nick's addition
+	static float GetDistanceBetweenPoints(Vector3 p1, Vector3 p2){
+		Vector2 diff = p2 - p1;
+		diff.y = 0;
+		return (p2 - p1).magnitude;
+	}
+				
 }
+
+
+			
