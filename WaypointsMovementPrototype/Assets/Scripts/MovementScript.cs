@@ -46,18 +46,27 @@ public class MovementScript : MonoBehaviour {
 //	public Vector3 m_rvoDesired;
 //	public Vector3 m_rvoCompromise;
 
+	private RVOUnity rvo;
 
 
 	private bool arrayReadingDirection = false;
 	private int overflowIndex;
 	private int lastIndex;
 
+	//debug
+	public int m_numberOfLapsComplete;
 
 	// Use this for initialization
 	void Start () {
 		SetUpRoute ();
 		rotationm_speed = m_speed / 10;
 		direction_Epsilon = m_speed / 3;
+		//RVOUnityMgr.GetInstance ("").SetCheckMoveFn (CheckMoveOverride);
+		rvo = GetComponent<RVOUnity> ();
+		//		if (rvo)
+		//			//m_radius = GetComponent<RVOUnity> ().m_radius - transform.localScale.x;
+		//			m_impatience = GetComponent<RVOUnity>().m_impatience;
+		//		else
 	}
 
 	public void SetUpRoute()
@@ -139,7 +148,7 @@ public class MovementScript : MonoBehaviour {
 	{
 		if (m_isTurning && m_thereIsAtLeastOneMoreWaypoint)
 		{
-			if (GetTwoLinesIntersection (transform.position, PredictPointInCurrentDirection(lookAheadDistance),
+			if (GetTwoLinesIntersection (transform.position, PredictPointInDirection(lookAheadDistance),
 				m_currentWaypoint, m_nextWaypoint))
 			{
 				float turnAmplitude = (lookAheadDistance - GetDistanceToThePoint (m_intersectionPoint));
@@ -149,7 +158,7 @@ public class MovementScript : MonoBehaviour {
 			}
 		}
 		else
-			m_lookAheadPoint = PredictPointInCurrentDirection (lookAheadDistance);
+			m_lookAheadPoint = PredictPointInDirection (lookAheadDistance);
 	}
 
 	bool CheckWaypointReaching()
@@ -169,12 +178,13 @@ public class MovementScript : MonoBehaviour {
 				if (GetDistanceBetweenPoints (next_wp_direction, m_direction) < direction_Epsilon)
 					return true;
 			}
-//			if (GetDistanceToThePoint (m_currentWaypoint) < distance_Epsilon)
-//				return true;
+			if (GetDistanceToThePoint (m_currentWaypoint) < distance_Epsilon)
+				return true;
 		}
 		return false;
 	}
 
+	public float m_yAngle;
 		
 	void Move()
 	{
@@ -186,10 +196,11 @@ public class MovementScript : MonoBehaviour {
 		if (!m_isTurning)
 		{
 			m_direction = m_wpDirection;
-			m_lookAheadPoint = m_direction * lookAheadDistance;
+			m_lookAheadPoint = PredictPointInDirection (lookAheadDistance);
 		}
 
 		transform.position += m_direction * m_speed;
+
 
 		if (!m_isTurning)
 		{
@@ -205,10 +216,26 @@ public class MovementScript : MonoBehaviour {
 				}
 			}
 		}
+
+		// = 180 * Mathf.Atan (m_direction.x/ m_direction.z) / Mathf.PI;
+		m_yAngle = GetAngleBetweenVectors (Vector3.zero, m_direction, Vector3.zero, Vector3.zero);
+		transform.rotation = Quaternion.Euler (new Vector3 (0, m_yAngle,0));
+	}
+
+	float GetAngleBetweenVectors(Vector3 v1_s, Vector3 v1_e, Vector3 v2_s, Vector3 v2_e)
+	{
+		Vector3 diff = (v1_e - v1_s) - (v2_e - v2_s);
+		return (180 * Mathf.Atan (diff.x / diff.z) / Mathf.PI);
+	}
+
+	float GetAngleBetweenVectors(Vector3 first, Vector3 second)
+	{
+		return (180 * Mathf.Atan ((second - first).x / (second - first).z) / Mathf.PI);
 	}
 
 	void HandleRouteFinishing()
 	{
+		m_numberOfLapsComplete++;
 		switch (movementType)
 		{
 		case MovementType.path:
@@ -250,6 +277,22 @@ public class MovementScript : MonoBehaviour {
 		}
 	}
 
+	Vector3 goalDirection;
+	Vector3 rvoDirection;
+
+	bool CheckMoveOverride(GameObject _who, Vector3 _preRvo, ref Vector3 _to)
+	{
+		 goalDirection = GetDirectionTowardsPoint (_preRvo);
+		 rvoDirection = GetDirectionTowardsPoint (_to);
+		if (Mathf.Abs (GetAngleBetweenVectors (goalDirection, rvoDirection)) > 15)
+		{
+			_to = _who.transform.position;
+			//return false;
+		}
+
+		return true;
+	}
+
 	void OnDrawGizmos() {
 		if (m_drawGizmos)
 		{
@@ -257,8 +300,12 @@ public class MovementScript : MonoBehaviour {
 			Gizmos.DrawSphere (m_lookAheadPoint, 1f);
 			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
 
-			Gizmos.DrawCube (PredictPointInCurrentDirection (lookAheadDistance), Vector3.one);
+			Gizmos.DrawCube (PredictPointInDirection (lookAheadDistance), Vector3.one);
 
+			Gizmos.color = Color.white;
+			Gizmos.DrawLine (transform.position, PredictPointInDirection (rvoDirection, lookAheadDistance));
+			Gizmos.color = Color.red;
+			Gizmos.DrawLine (transform.position, PredictPointInDirection (goalDirection, lookAheadDistance));
 		}
 //
 //		Gizmos.DrawLine (m_rvoFrom, m_rvoTo);
@@ -293,8 +340,12 @@ public class MovementScript : MonoBehaviour {
 		return GetDirectionTowardsPoint(m_currentWaypoint);
 	}
 
-	Vector3 PredictPointInCurrentDirection(float distance){
+	Vector3 PredictPointInDirection(float distance){
 		return(transform.position + m_direction * distance);
+	}
+
+	Vector3 PredictPointInDirection(Vector3 direction, float distance){
+				return(transform.position + direction * distance);
 	}
 		
 	bool GetTwoLinesIntersection(Vector3 dir_line_s, Vector3 dir_line_e, Vector3 wp_line_s, Vector3 wp_line_e)
@@ -311,7 +362,10 @@ public class MovementScript : MonoBehaviour {
 		float delta = a1 * b2 - a2 * b1;
 
 		if (delta == 0)
+		{
+			print ("false");
 			return false;
+		}
 
 		float x = (b2 * c1 - b1 * c2) / delta,
 		y = (dir_line_e.y + dir_line_s.y) / 2,

@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+
 
 public class GlobalScript : MonoBehaviour {
 
@@ -13,10 +15,28 @@ public class GlobalScript : MonoBehaviour {
 
 	private Vector3 m_adjustmentDirection;
 	private Vector3 m_desiredPosition;
+
+	private Dictionary<string,int> m_typesPopularity;
 	// Use this for initialization
 	void Start () {
-		RVOUnityMgr.GetInstance ("").SetCheckMoveFn (CheckMoveOverride);
-		rvo = GetComponent<RVOUnity> ();
+		m_typesPopularity = new Dictionary<string, int> ();
+		foreach (GameObject ch in m_characters)
+		{
+			if (ch.GetComponent<RVOUnity> ())
+			{
+				if (!m_typesPopularity.ContainsKey(ch.GetComponent<RVOUnity> ().m_impatienceMode.ToString()))
+					m_typesPopularity.Add (ch.GetComponent<RVOUnity> ().m_impatienceMode.ToString (), 0);
+				m_typesPopularity [ch.GetComponent<RVOUnity> ().m_impatienceMode.ToString()]++;
+			}
+		}
+
+		foreach (System.Collections.Generic.KeyValuePair<string, int> p in m_typesPopularity)
+		{
+			print ("Impatience mode: " + p.Key + " (" + p.Value + " agents)");
+		}
+
+		//RVOUnityMgr.GetInstance ("").SetCheckMoveFn (CheckMoveOverride);
+		//rvo = GetComponent<RVOUnity> ();
 //		if (rvo)
 //			//m_radius = GetComponent<RVOUnity> ().m_radius - transform.localScale.x;
 //			m_impatience = GetComponent<RVOUnity>().m_impatience;
@@ -60,19 +80,6 @@ public class GlobalScript : MonoBehaviour {
 //	}
 
 
-	bool CheckMoveOverride(GameObject _who, Vector3 _beforeRvo, ref Vector3 _afterRvo)
-	{
-		m_rvoDisposition = GetDistanceBetweenPoints (_beforeRvo, _afterRvo);
-		m_impatience = rvo.m_impatience;
-		if (m_rvoDisposition > m_dispThreshold)
-			m_impatience += 0.01f;
-		else
-			m_impatience -= 0.01f;
-		rvo.SetImpatience (m_impatience);
-		print (m_impatience);
-		return true;
-	}
-
 	static Vector3 GetDirectionFromOnePointToAnother(Vector3 from, Vector3 to)
 	{
 		Vector3 result = (to - from).normalized;
@@ -87,8 +94,24 @@ public class GlobalScript : MonoBehaviour {
 	}
 
 
+	public GameObject[] m_characters;
+	private int m_currentLapsNumber = 1;
+
 	// Update is called once per frame
 	void Update () {
-	
+		bool all_passed = true;
+		foreach (GameObject ch in m_characters)
+		{
+
+			if (ch.GetComponent<MovementScript> ())
+			{
+				if (ch.GetComponent<MovementScript> ().m_numberOfLapsComplete < m_currentLapsNumber)
+					all_passed = false;
+			}
+		}
+		if (all_passed)
+		{
+			print ("Lap: " + m_currentLapsNumber++ + " Time: " + Time.time);
+		}
 	}
 }

@@ -223,13 +223,10 @@ public class RVOUnity : MonoBehaviour {
 
 	public Vector3 m_pos;
 
-
-
 	private Vector3 m_expectedDirection;
 
 	public string m_instanceName;
 	public float m_radius;
-	public float m_impatience;
 	public bool m_static;
 	public bool m_drawGizmos;
 	private int m_id;
@@ -240,6 +237,8 @@ public class RVOUnity : MonoBehaviour {
 		if (m_id != m_instance.m_agents.Count)
 			Debug.LogErrorFormat("RVO instance mismatch {0} {1}", m_instance.m_agents.Count, m_id);
 		m_instance.m_agents.Add(this);
+
+		SetupImpatienceValues();
 	}
 	public void Add() {
 		if (m_instance == null) {
@@ -285,6 +284,10 @@ public class RVOUnity : MonoBehaviour {
 		m_instance.m_instance.setAgentPrefVelocity(m_id, new RVO.Vector2());
 	}
 
+	float GetAngleBetweenVectors(Vector3 first, Vector3 second)
+	{
+		return (180 * Mathf.Atan ((second - first).x / (second - first).z) / Mathf.PI);
+	}
 
 
 
@@ -303,33 +306,87 @@ public class RVOUnity : MonoBehaviour {
 				pos = transform.position * m_impatience + pos * (1-m_impatience);
 				m_instance.SetAgentPosition(m_id, pos);
 			}
+
+			Vector3 goalDirection = GetDirectionFromOnePointToAnother(m_pos, pos);
+			Vector3 rvoDirection = GetDirectionFromOnePointToAnother (m_pos,transform.position);
+			if (Mathf.Abs (GetAngleBetweenVectors (goalDirection, rvoDirection)) > 90)
+				pos = m_pos;
 			transform.position = pos;
 			m_instance.SetAgentPosition(m_id, pos);
 		}
 		m_pos = m_instance.GetAgentPosition(m_id);
 	}
 
-	public bool m_staticImpatience;
+	private float m_impatience;
 
+	//Mode
+	public enum ImpatienceMode { Disabled, Light, Medium, Strong};
+	public ImpatienceMode m_impatienceMode;
+
+	//Coefficient
 	private float m_impCoeff;
-	public float m_impSmall_Coeff = 0.005f;
-	public float m_impMedium_Coeff = 0.05f;
-	public float m_impHigh_Coeff = 0.1f;
+	private float m_impSmall_Coeff;
+	private float m_impMedium_Coeff;
+	private float m_impHigh_Coeff;
 
-
+	//Threshold
 	private float m_impDispThreshold;
-	public float m_impSmall_DispThreshold = 0.4f;
-	public float m_impMedium_DispThreshold = 0.5f;
-	public float m_impHigh_DispThreshold = 0.6f;
+	private float m_impSmall_DispThreshold;
+	private float m_impMedium_DispThreshold;
+	private float m_impHigh_DispThreshold;
 
 	private float m_rvoDisposition;
 	private float m_rvoDispOverflow;
 
+	void SetupImpatienceValues()
+	{
+		switch (m_impatienceMode)
+		{
+			case ImpatienceMode.Disabled:
+			break;
+			case ImpatienceMode.Light:
+				{
+					m_impSmall_Coeff = 0.005f;
+					m_impMedium_Coeff = 0.1f;
+					m_impHigh_Coeff = 0.2f;
+
+					m_impSmall_DispThreshold = 0.5f;
+					m_impMedium_DispThreshold = 0.7f;
+					m_impHigh_DispThreshold = 1.0f;
+				}
+			break;
+			case ImpatienceMode.Medium:
+				{
+					m_impSmall_Coeff = 0.005f;
+					m_impMedium_Coeff = 0.05f;
+					m_impHigh_Coeff = 0.1f;
+
+					m_impSmall_DispThreshold = 0.4f;
+					m_impMedium_DispThreshold = 0.6f;
+					m_impHigh_DispThreshold = 0.8f;
+				}
+			break;
+			case ImpatienceMode.Strong:
+				{
+					m_impSmall_Coeff = 0.001f;
+					m_impMedium_Coeff = 0.005f;
+					m_impHigh_Coeff = 0.1f;
+
+					m_impSmall_DispThreshold = 0.4f;
+					m_impMedium_DispThreshold = 0.5f;
+					m_impHigh_DispThreshold = 0.6f;
+				}
+			break;
+			default:
+			break;
+		}
+	}
+
 	void UpdateImpatience(Vector3 pos)
 	{
-		if (!m_staticImpatience)
+		if (m_impatienceMode != ImpatienceMode.Disabled)
 		{
-			m_rvoDisposition = GetDistanceBetweenPoints (pos, transform.position);	
+			m_rvoDisposition = GetDistanceBetweenPoints (pos, transform.position);
 
 			if (m_impatience < 0.25f)
 			{
@@ -340,7 +397,6 @@ public class RVOUnity : MonoBehaviour {
 				{
 					m_impCoeff = m_impMedium_Coeff;
 					m_impDispThreshold = m_impMedium_DispThreshold;
-				//print(
 				}
 				else
 				{
@@ -427,6 +483,13 @@ public class RVOUnity : MonoBehaviour {
 		Vector2 diff = p2 - p1;
 		diff.y = 0;
 		return (p2 - p1).magnitude;
+	}
+
+	Vector3 GetDirectionFromOnePointToAnother(Vector3 from, Vector3 to)
+	{
+		Vector3 result = (to - from).normalized;
+		result.y = 0;	
+		return result;
 	}
 				
 }
