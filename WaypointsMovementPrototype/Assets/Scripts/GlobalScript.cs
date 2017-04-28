@@ -5,79 +5,9 @@ using System.Collections.Generic;
 
 public class GlobalScript : MonoBehaviour {
 
-	public float m_dispThreshold;
-
-	//private float m_radius;
-	private float m_rvoDisposition;
-	private float m_adjustmentDistance;
-	private float m_impatience;
-	private RVOUnity rvo;
-
-	private Vector3 m_adjustmentDirection;
-	private Vector3 m_desiredPosition;
-
-	private Dictionary<string,int> m_typesPopularity;
 	// Use this for initialization
 	void Start () {
-		m_typesPopularity = new Dictionary<string, int> ();
-		foreach (GameObject ch in m_characters)
-		{
-			if (ch.GetComponent<RVOUnity> ())
-			{
-				if (!m_typesPopularity.ContainsKey(ch.GetComponent<RVOUnity> ().m_impatienceMode.ToString()))
-					m_typesPopularity.Add (ch.GetComponent<RVOUnity> ().m_impatienceMode.ToString (), 0);
-				m_typesPopularity [ch.GetComponent<RVOUnity> ().m_impatienceMode.ToString()]++;
-			}
-		}
-
-		foreach (System.Collections.Generic.KeyValuePair<string, int> p in m_typesPopularity)
-		{
-			print ("Impatience mode: " + p.Key + " (" + p.Value + " agents)");
-		}
-
-		//RVOUnityMgr.GetInstance ("").SetCheckMoveFn (CheckMoveOverride);
-		//rvo = GetComponent<RVOUnity> ();
-//		if (rvo)
-//			//m_radius = GetComponent<RVOUnity> ().m_radius - transform.localScale.x;
-//			m_impatience = GetComponent<RVOUnity>().m_impatience;
-//		else
-//			print ("Script RVOUnity is not attached");
 	}
-//
-//	bool CheckMoveOverride(GameObject _who, Vector3 _from, ref Vector3 _to)
-//	{
-//		m_desiredPosition = _who.transform.position;
-//		m_rvoDisposition = GetDistanceBetweenPoints (_to, m_desiredPosition);
-//
-//		m_adjustmentDistance = Mathf.Min (m_radius, m_rvoDisposition) * m_distanceFraction;
-////		if (m_adjustmentDistance > m_adjustmentThreshold)
-////			m_adjustmentDistance *= m_distanceFraction;
-////		GetComponent<MovementScript> ().m_rvoFrom = _from;
-////		GetComponent<MovementScript> ().m_rvoTo = _to;
-////		GetComponent<MovementScript> ().m_rvoDesired = m_desiredPosition;
-////		GetComponent<MovementScript> ().m_rvoCompromise = _to + m_adjustmentDistance * m_adjustmentDirection;;
-//
-//		//print (m_adjustmentDistance);
-////		if (m_adjustmentDistance > m_distanceFraction)
-////			return true;
-//		// * m_distanceFraction;
-//		//print (m_adjustmentDistance);
-//		//m_adjustmentDistance = Mathf.Min (m_distanceFraction * m_adjustmentDistance, 0.1f * m_radius);
-//
-//		//m_adjustmentDistance *= 0.75f;
-//
-//		if (m_adjustmentDistance > 0)
-//		{
-//			m_adjustmentDirection = GetDirectionFromOnePointToAnother (_to, m_desiredPosition);	
-//			_to += m_adjustmentDistance * m_adjustmentDirection;
-//			//_to = m_desiredPosition;
-//
-//			return true;
-//
-//		}
-//		print ("Radius < 0");
-//		return false;
-//	}
 
 
 	static Vector3 GetDirectionFromOnePointToAnother(Vector3 from, Vector3 to)
@@ -92,26 +22,58 @@ public class GlobalScript : MonoBehaviour {
 		diff.y = 0;
 		return (p2 - p1).magnitude;
 	}
+		
 
+	public static float GetAngleBetweenVectors(Vector3 first, Vector3 second)
+	{
+		float dot = Vector3.Dot (first, second) / (first.magnitude * second.magnitude);
+		var acos = Mathf.Acos(dot);
+		return(acos*180/Mathf.PI);
+	}
 
-	public GameObject[] m_characters;
-	private int m_currentLapsNumber = 1;
+	public static bool GetTwoLinesIntersection(Vector3 dir_line_s, Vector3 dir_line_e, Vector3 wp_line_s, Vector3 wp_line_e, ref Vector3 intersectionPoint)
+	{
+
+		float a1 = dir_line_e.z - dir_line_s.z,
+		b1 = dir_line_s.x - dir_line_e.x,
+		c1 = a1 * dir_line_s.x + b1 * dir_line_s.z;
+
+		float a2 = wp_line_e.z - wp_line_s.z,
+		b2 = wp_line_s.x - wp_line_e.x,
+		c2 = a2 * wp_line_s.x + b2 * wp_line_s.z;
+
+		float delta = a1 * b2 - a2 * b1;
+
+		if (delta == 0)
+		{
+			print ("false");
+			return false;
+		}
+
+		float x = (b2 * c1 - b1 * c2) / delta,
+		y = (dir_line_e.y + dir_line_s.y) / 2,
+		z = (a1 * c2 - a2 * c1) / delta;
+
+		if (Mathf.Abs (x) < 0.0001)
+			x += wp_line_s.x;
+		if (Mathf.Abs (z) < 0.0001)
+			z += wp_line_s.z;
+
+		x = Mathf.Max (x, Mathf.Min (wp_line_s.x, wp_line_e.x));
+		x = Mathf.Min (x, Mathf.Max (wp_line_s.x, wp_line_e.x));
+		z = Mathf.Max (z, Mathf.Min (wp_line_s.z, wp_line_e.z));
+		z = Mathf.Min (z, Mathf.Max (wp_line_s.z, wp_line_e.z));
+
+		intersectionPoint = new Vector3 (x, y, z);
+		return true;
+	}
+		
+	public static Vector3 PredictPointInDirection(Vector3 from, Vector3 direction, float distance){
+		return(from + direction * distance);
+	}
+
 
 	// Update is called once per frame
 	void Update () {
-		bool all_passed = true;
-		foreach (GameObject ch in m_characters)
-		{
-
-			if (ch.GetComponent<MovementScript> ())
-			{
-				if (ch.GetComponent<MovementScript> ().m_numberOfLapsComplete < m_currentLapsNumber)
-					all_passed = false;
-			}
-		}
-		if (all_passed)
-		{
-			print ("Lap: " + m_currentLapsNumber++ + " Time: " + Time.time);
-		}
 	}
 }
