@@ -111,12 +111,12 @@ public class RVOUnityInstance {
 		Init();
 	}
 
-	float _neighbourDistance = 20.0f;
+	float _neighbourDistance = 100.0f;
 	private int _maxNeighbours = 50;
 	private float _timeHorizon = 50.0f;//40.0f;
 	private float _timeHorizonObstacles = 1.0f;//40.0f;
 	private float _defaultRadius = 0.5f;
-	private float _maxSpeed = 10.0f;//5.0f;
+	private float _maxSpeed = 30.0f;//5.0f;
 	public void Init() {
 		m_instance.setAgentDefaults(_neighbourDistance, _maxNeighbours, _timeHorizon,_timeHorizonObstacles, _defaultRadius, _maxSpeed, new RVO.Vector2());
 	}
@@ -220,7 +220,6 @@ public class RVOUnity : MonoBehaviour {
 	}
 
 	private RVOUnityInstance m_instance;
-
 	public Vector3 m_pos;
 
 	private Vector3 m_expectedDirection;
@@ -286,8 +285,14 @@ public class RVOUnity : MonoBehaviour {
 
 	float GetAngleBetweenVectors(Vector3 first, Vector3 second)
 	{
-		return (180 * Mathf.Atan ((second - first).x / (second - first).z) / Mathf.PI);
+		float dot = Vector3.Dot (first, second) / (first.magnitude * second.magnitude);
+		var acos = Mathf.Acos(dot);
+		return(acos*180/Mathf.PI);
 	}
+
+	private Vector3 m_goalDirection;
+	private Vector3 m_rvoDirection;
+	private float m_rvoAngle;
 
 
 
@@ -299,18 +304,18 @@ public class RVOUnity : MonoBehaviour {
 		if (!m_lastMoveSuccessful)
 			m_instance.SetAgentPosition(m_id, transform.position);
 		else {
-			UpdateImpatience (pos);
+
+			m_goalDirection = GetDirectionFromOnePointToAnother(m_pos, pos);
+			m_rvoDirection = GetDirectionFromOnePointToAnother (m_pos,transform.position);
+			m_rvoAngle = Mathf.Abs (GetAngleBetweenVectors (m_goalDirection, m_rvoDirection));
+			UpdateImpatience_v2(m_rvoAngle);
 
 			if (m_impatience > 0) 
 			{
 				pos = transform.position * m_impatience + pos * (1-m_impatience);
 				m_instance.SetAgentPosition(m_id, pos);
 			}
-
-			Vector3 goalDirection = GetDirectionFromOnePointToAnother(m_pos, pos);
-			Vector3 rvoDirection = GetDirectionFromOnePointToAnother (m_pos,transform.position);
-			if (Mathf.Abs (GetAngleBetweenVectors (goalDirection, rvoDirection)) > 90)
-				pos = m_pos;
+			
 			transform.position = pos;
 			m_instance.SetAgentPosition(m_id, pos);
 		}
@@ -379,6 +384,36 @@ public class RVOUnity : MonoBehaviour {
 			break;
 			default:
 			break;
+		}
+	}
+
+	private float m_impAngle_Threshold;
+	private float m_impAngle_SmallThreshold = 90;
+	private float m_impAngle_HighThreshold = 120f;
+
+	private float m_impAngle_Coeff;
+	private float m_impAngle_SmallCoeff = 0.00005f;
+	private float m_impAngle_HighCoeff = 0.0001f;
+
+	void UpdateImpatience_v2(float angle)
+	{
+		if (m_impatienceMode != ImpatienceMode.Disabled)
+		{
+			if (m_impatience < 0.3f)
+			{
+				m_impAngle_Coeff = m_impAngle_SmallCoeff;
+				m_impAngle_Threshold = m_impAngle_SmallThreshold;
+			}
+			else
+			{
+				m_impAngle_Coeff = m_impAngle_HighCoeff;
+				m_impAngle_Threshold = m_impAngle_HighThreshold;
+			}
+
+			m_rvoDispOverflow = angle - m_impAngle_Threshold;
+			m_impatience += m_impAngle_Coeff * m_rvoDispOverflow;
+			m_impatience = Mathf.Max (m_impatience, 0);
+			m_impatience = Mathf.Min (m_impatience, 1);
 		}
 	}
 

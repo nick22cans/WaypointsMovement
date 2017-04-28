@@ -19,7 +19,7 @@ public class MovementScript : MonoBehaviour {
 	public float lookAheadDistance;
 
 	public bool m_drawGizmos;
-	private float rotationm_speed;
+	private float rotation_speed;
 
 
 	private int m_currentWaypointIndex;
@@ -37,10 +37,12 @@ public class MovementScript : MonoBehaviour {
 	private Vector3 m_wpDirection;
 	private Vector3 m_lookAheadPoint;
 
-	Vector3 m_directionChangeStep; 
+	private Vector3 m_directionChangeStep; 
+	private Vector3 m_previousFrameLocation;
 
+	public bool m_debugPrintOn;
 
-	public float dist;
+	//public float dist;
 //	public Vector3 m_rvoFrom;
 //	public Vector3 m_rvoTo;
 //	public Vector3 m_rvoDesired;
@@ -59,7 +61,7 @@ public class MovementScript : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		SetUpRoute ();
-		rotationm_speed = m_speed / 10;
+		rotation_speed = m_speed / 10;
 		direction_Epsilon = m_speed / 3;
 		//RVOUnityMgr.GetInstance ("").SetCheckMoveFn (CheckMoveOverride);
 		rvo = GetComponent<RVOUnity> ();
@@ -144,21 +146,27 @@ public class MovementScript : MonoBehaviour {
 		return true;
 	}
 
+	private bool m_rvoAdjustOrientation;
+	private Vector3 m_lookAheadUpdateFromPoint;
 	void UpdateLookAheadPoint()
 	{
+//		if (m_rvoAdjustOrientation)
+//			m_lookAheadUpdateFromPoint = m_previousFrameLocation;
+//		else
+			
 		if (m_isTurning && m_thereIsAtLeastOneMoreWaypoint)
 		{
-			if (GetTwoLinesIntersection (transform.position, PredictPointInDirection(lookAheadDistance),
+			if (GetTwoLinesIntersection (transform.position, PredictPointInDirection(m_previousFrameLocation,m_direction, lookAheadDistance),
 				m_currentWaypoint, m_nextWaypoint))
 			{
 				float turnAmplitude = (lookAheadDistance - GetDistanceToThePoint (m_intersectionPoint));
-				turnAmplitude = Mathf.Min(turnAmplitude, lookAheadDistance * rotationm_speed);
+				turnAmplitude = Mathf.Min(turnAmplitude, lookAheadDistance * rotation_speed);
 
 				m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * turnAmplitude;
 			}
 		}
 		else
-			m_lookAheadPoint = PredictPointInDirection (lookAheadDistance);
+			m_lookAheadPoint = PredictPointInDirection (m_previousFrameLocation,m_direction, lookAheadDistance);
 	}
 
 	bool CheckWaypointReaching()
@@ -185,7 +193,8 @@ public class MovementScript : MonoBehaviour {
 	}
 
 	public float m_yAngle;
-		
+	private Vector3 m_rvoDisposition;	
+	private float m_rvoAngle;
 	void Move()
 	{
 		UpdateLookAheadPoint ();
@@ -198,9 +207,25 @@ public class MovementScript : MonoBehaviour {
 			m_direction = m_wpDirection;
 			m_lookAheadPoint = PredictPointInDirection (lookAheadDistance);
 		}
+		if (rvo)
+		{
+			m_rvoDisposition = (transform.position - m_previousFrameLocation);
+			m_rvoAngle = GetAngleBetweenVectors (m_rvoDisposition, m_direction);
+//			if (m_rvoAngle > 165)
+//				rvo.SetImpatience(rvo.m_im
+//				transform.position = m_previousFrameLocation;
+//		if (m_rvoDisposition > 0.0001)
+//			m_direction = m_wpDirection;
+		
+			if (m_debugPrintOn)
+			{
+
+				print (m_rvoDisposition);
+			}
+		}
+
 
 		transform.position += m_direction * m_speed;
-
 
 		if (!m_isTurning)
 		{
@@ -220,6 +245,8 @@ public class MovementScript : MonoBehaviour {
 		// = 180 * Mathf.Atan (m_direction.x/ m_direction.z) / Mathf.PI;
 		m_yAngle = GetAngleBetweenVectors (Vector3.zero, m_direction, Vector3.zero, Vector3.zero);
 		transform.rotation = Quaternion.Euler (new Vector3 (0, m_yAngle,0));
+
+		m_previousFrameLocation = transform.position;
 	}
 
 	float GetAngleBetweenVectors(Vector3 v1_s, Vector3 v1_e, Vector3 v2_s, Vector3 v2_e)
@@ -230,7 +257,9 @@ public class MovementScript : MonoBehaviour {
 
 	float GetAngleBetweenVectors(Vector3 first, Vector3 second)
 	{
-		return (180 * Mathf.Atan ((second - first).x / (second - first).z) / Mathf.PI);
+		float dot = Vector3.Dot (first, second) / (first.magnitude * second.magnitude);
+		var acos = Mathf.Acos(dot);
+		return(acos*180/Mathf.PI);
 	}
 
 	void HandleRouteFinishing()
@@ -347,6 +376,11 @@ public class MovementScript : MonoBehaviour {
 	Vector3 PredictPointInDirection(Vector3 direction, float distance){
 				return(transform.position + direction * distance);
 	}
+
+	Vector3 PredictPointInDirection(Vector3 from, Vector3 direction, float distance){
+		return(from + m_direction * distance);
+	}
+
 		
 	bool GetTwoLinesIntersection(Vector3 dir_line_s, Vector3 dir_line_e, Vector3 wp_line_s, Vector3 wp_line_e)
 	{
