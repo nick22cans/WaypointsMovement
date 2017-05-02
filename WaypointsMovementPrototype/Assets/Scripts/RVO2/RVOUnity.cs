@@ -448,8 +448,11 @@ public class RVOUnity : MonoBehaviour {
 
 
 	void OnDestroy() {
-		m_instance.m_removes.Add(m_id);
-		m_id = -1;
+		if (m_instance != null)
+		{
+			m_instance.m_removes.Add (m_id);
+			m_id = -1;
+		}
 	}
 
 	public RVOUnity SetImpatience(float _imp) {
