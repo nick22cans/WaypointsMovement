@@ -10,21 +10,21 @@ public class GlobalScript : MonoBehaviour {
 	}
 
 
-	static Vector3 GetDirectionFromOnePointToAnother(Vector3 from, Vector3 to)
+	public static Vector3 GetDirection(Vector3 from, Vector3 to)
 	{
 		Vector3 result = (to - from).normalized;
 		result.y = 0;	
 		return result;
 	}
 
-	static float GetDistanceBetweenPoints(Vector3 p1, Vector3 p2){
+	public static float GetDistance(Vector3 p1, Vector3 p2){
 		Vector2 diff = p2 - p1;
 		diff.y = 0;
 		return (p2 - p1).magnitude;
 	}
 		
 
-	public static float GetAngleBetweenVectors(Vector3 first, Vector3 second)
+	public static float GetAngle(Vector3 first, Vector3 second)
 	{
 		float dot = Vector3.Dot (first, second) / (first.magnitude * second.magnitude);
 		var acos = Mathf.Acos(dot);
@@ -46,7 +46,6 @@ public class GlobalScript : MonoBehaviour {
 
 		if (delta == 0)
 		{
-			print ("false");
 			return false;
 		}
 
