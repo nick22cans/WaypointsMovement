@@ -28,6 +28,7 @@ public class MovementScript : MonoBehaviour {
 	private Vector3 m_intersectionPoint;
 	private Vector3 m_lookAheadPoint;
 	private Vector3 m_rawLookAheadPoint;
+	private Vector3 m_prevFrameLocation;
 
 
 	//orientation vectors
@@ -39,14 +40,11 @@ public class MovementScript : MonoBehaviour {
 	private int m_arrayOverflowIndex = -1;
 	private int m_arrayLastIndex;
 
-	//debug
-	public int m_numberOfLapsComplete;
-
-
 	//Boolean checks
 	private bool m_routeIsFinished = true;
 	private bool m_arrayReadingDirection = false;
 	private bool m_isTurningAround = false;
+	private bool m_isMoving = true;
 	#endregion
 
 	#region Initialization
@@ -120,7 +118,9 @@ public class MovementScript : MonoBehaviour {
 	{
 		UpdateLookAheadPoint ();
 		Rotate ();
-		transform.position += m_direction * m_speed;
+		m_prevFrameLocation = transform.position;
+		if (m_isMoving)
+			transform.position += m_direction * m_speed;
 	}
 		
 	void Rotate()
@@ -130,14 +130,21 @@ public class MovementScript : MonoBehaviour {
 		else
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
 
-		if (GlobalScript.GetAngle (m_desiredDirection, GlobalScript.GetDirection (transform.position, m_currentWaypoint)) > 120)
-			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
+//		if (GlobalScript.GetAngle (m_desiredDirection, GlobalScript.GetDirection (transform.position, m_currentWaypoint)) > 120 &&
+//			GlobalScript.GetDistance(m_currentWaypoint,transform.position) > GlobalScript.GetDistance(m_currentWaypoint,m_prevFrameLocation))
+//		{
+//			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
+//			m_isMoving = false;
+//		}
+
+		if (!m_isMoving)
+			if (GlobalScript.GetAngle (m_desiredDirection, m_direction) < m_maxAngularRotationSpeed)
+				m_isMoving = true;
+			
 
 		if (GlobalScript.GetAngle (m_desiredDirection, m_direction) > 1f)
-		{
 			m_direction = Vector3.Slerp (m_direction, m_desiredDirection, m_maxAngularRotationSpeed / (GlobalScript.GetAngle (m_direction, m_desiredDirection)));
-			transform.rotation = Quaternion.LookRotation (m_direction);
-		}
+		transform.rotation = Quaternion.LookRotation (m_direction);
 	}
 
 	//Move look ahead point
@@ -151,7 +158,13 @@ public class MovementScript : MonoBehaviour {
 				m_overflowAmount = lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint);
 				if (m_overflowAmount > 0)
 				{
+					m_overflowAmount = Mathf.Min (m_overflowAmount, m_speed * lookAheadDistance / 10);
 					m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * m_overflowAmount;
+					return;
+				}
+				else
+				{
+					m_lookAheadPoint = GlobalScript.GetDirection (transform.position, m_currentWaypoint) * lookAheadDistance;
 					return;
 				}
 			}
@@ -207,7 +220,6 @@ public class MovementScript : MonoBehaviour {
 
 	void HandleRouteFinishing()
 	{
-		m_numberOfLapsComplete++;
 		switch (movementType)
 		{
 		case MovementType.path:
@@ -235,12 +247,12 @@ public class MovementScript : MonoBehaviour {
 		if (m_drawGizmos)
 		{
 			Gizmos.color = Color.yellow;
-			Gizmos.DrawSphere (m_lookAheadPoint, 1f);
+			Gizmos.DrawSphere (m_lookAheadPoint, 0.5f);
 			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
 			Gizmos.DrawCube (m_rawLookAheadPoint, Vector3.one);
 
 			Gizmos.color = Color.red;
-			Gizmos.DrawSphere (m_intersectionPoint, 2f);
+			Gizmos.DrawSphere (m_intersectionPoint, 1f);
 			Gizmos.DrawLine (m_intersectionPoint, transform.position);
 
 			Gizmos.color = Color.yellow;
