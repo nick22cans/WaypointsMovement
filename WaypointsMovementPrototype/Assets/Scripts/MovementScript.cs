@@ -38,7 +38,6 @@ public class MovementScript : MonoBehaviour {
 	//orientation vectors
 	private Vector3 m_direction;
 	private Vector3 m_desiredDirection;
-	private Vector3 m_nextWpDirection;
 
 	//Pointers
 	private int m_currentWaypointIndex;
@@ -51,8 +50,8 @@ public class MovementScript : MonoBehaviour {
 
 	//Boolean checks
 	private bool m_routeIsFinished = true;
-	private bool m_thereIsAtLeastOneMoreWaypoint = false;
 	private bool m_arrayReadingDirection = false;
+	private bool m_isTurningAround = false;
 
 	//Rotation properties
 	private float m_rotationDirection;
@@ -66,7 +65,7 @@ public class MovementScript : MonoBehaviour {
 		SetUpRoute ();
 		m_prevWaypoint = m_currentWaypoint;
 		m_maxTurnSpeed = m_speed / 10 ;
-		m_direction = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
+		m_desiredDirection = m_direction = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 	}
 
 	public void SetUpRoute()
@@ -82,7 +81,6 @@ public class MovementScript : MonoBehaviour {
 				if (m_arrayReadingDirection)
 				{
 					SetUpRouteValues (false, m_waypoints.Length - 1, 0, -1);
-
 				}
 				else
 				{
@@ -96,6 +94,8 @@ public class MovementScript : MonoBehaviour {
 			if (TryPickNewWaypoint ())
 			{
 				m_routeIsFinished = false;
+				if (movementType == MovementType.reverse_loop)
+					m_isTurningAround = true;
 			}
 		}
 	}
@@ -138,31 +138,36 @@ public class MovementScript : MonoBehaviour {
 	private float m_angleDiff = 5f;
 	void Rotate()
 	{
-		m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
+		if (m_waypointIsStrict || m_isTurningAround)
+			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
+		else
+			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
+		
 		if (GlobalScript.GetAngle (m_desiredDirection, m_direction) > 1f)
 		{
-			//m_angleDiff = Quaternion.Angle (Quaternion.LookRotation (m_desiredDirection), Quaternion.LookRotation (m_direction));
 			m_direction = Vector3.Slerp (m_direction, m_desiredDirection, m_angleDiff / (GlobalScript.GetAngle (m_direction, m_desiredDirection)));
 			transform.rotation = Quaternion.LookRotation (m_direction);
 		}
 	}
 
+	private float m_overflowAmount;
 
 	//Move look ahead point
 	void UpdateLookAheadPoint()
 	{	
-		m_rawLookAheadPoint = GlobalScript.PredictPointInDirection (transform.position, m_direction, lookAheadDistance);
+//		m_rawLookAheadPoint = GlobalScript.PredictPointInDirection (transform.position, m_direction, lookAheadDistance);
+		m_rawLookAheadPoint = GlobalScript.PredictPointInDirection (transform.position, m_desiredDirection, lookAheadDistance);
 
-		if (m_thereIsAtLeastOneMoreWaypoint)
+		if (!m_waypointIsStrict)
 		{
 			if (GlobalScript.GetTwoLinesIntersection (transform.position, m_rawLookAheadPoint, m_prevWaypoint, m_currentWaypoint, ref m_intersectionPoint))
 			{
-				float overflowAmount = lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint);
+				m_overflowAmount = lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint);
 
-				if (overflowAmount > 0)
+				if (m_overflowAmount > 0)
 				{
-					overflowAmount = Mathf.Min (overflowAmount, lookAheadDistance * m_maxTurnSpeed);
-					m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * overflowAmount;
+					m_overflowAmount = Mathf.Min (m_overflowAmount, lookAheadDistance * m_maxTurnSpeed);
+					m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * m_overflowAmount;
 					return;
 				}
 			}
@@ -177,41 +182,45 @@ public class MovementScript : MonoBehaviour {
 			m_currentWaypointIndex++;
 		else
 			m_currentWaypointIndex--;
-		
+
+		m_isTurningAround = false; 
 		if (m_currentWaypointIndex == m_arrayOverflowIndex)
+		{
 			return false;
-		//
+		}
 		 
+
 		m_prevWaypoint = m_currentWaypoint;
 		m_currentWaypoint = m_waypoints [m_currentWaypointIndex].transform.position;
-
-		//next waypoint
-		if (m_currentWaypointIndex != m_arrayOverflowIndex)
-		{
-			m_thereIsAtLeastOneMoreWaypoint = true;
-
-			m_crossWpDirection = GlobalScript.GetDirection (m_prevWaypoint, m_currentWaypoint);
-		} 
-		else
-		{
-			m_thereIsAtLeastOneMoreWaypoint = false;
-			if (movementType == MovementType.path)
-				m_waypointIsStrict = true;
-		}
+		m_crossWpDirection = GlobalScript.GetDirection (m_prevWaypoint, m_currentWaypoint);
+		if (m_waypointIsStrict)
+			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 		
 		if ((m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ())
 		{
 			m_waypointIsStrict = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().isStrict;
 			distance_Epsilon = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().reachingDistance;
 		}
+
+		if (m_currentWaypointIndex == m_arrayLastIndex)
+			m_waypointIsStrict = true;
 		
-			return true;
+		return true;
 	}
 
 	bool CheckWaypointReaching()
 	{
-		if (GlobalScript.GetDistance (transform.position, m_currentWaypoint) < lookAheadDistance)
-			return true;
+		if (m_waypointIsStrict)
+		{
+			if (GlobalScript.GetDistance (transform.position, m_currentWaypoint) < distance_Epsilon)
+				return true;
+		}
+		else
+		{
+			if (GlobalScript.GetDistance (transform.position, m_currentWaypoint) < lookAheadDistance)
+				return true;
+		}
+			
 		return false;
 	}
 
