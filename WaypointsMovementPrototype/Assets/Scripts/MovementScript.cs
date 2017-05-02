@@ -132,45 +132,21 @@ public class MovementScript : MonoBehaviour {
 		UpdateLookAheadPoint ();
 		Rotate ();
 		transform.position += m_direction * m_speed;
-
-
-
-		//m_previousFramePosition = transform.position;
 	}
 
 	private float m_desiredYRotation;
-
+	private float m_angleDiff = 5f;
 	void Rotate()
 	{
-		m_direction = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
 		m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
-		m_desiredYRotation = GlobalScript.GetAngle (m_direction, Vector3.forward);
-		transform.rotation = Quaternion.Slerp (
-			Quaternion.LookRotation (m_direction),
-			Quaternion.LookRotation (m_desiredDirection),
-			(Mathf.Max(0,1 - m_rotationSpeed / (GlobalScript.GetAngle(m_desiredDirection,Vector3.forward) - m_desiredYRotation))));
-		//				}
-
-		//			if (m_isRotatingOnTheSpot)
-		//			{
-		//				if (m_rotAngleDiff <= 0)
-		//				{
-		//
-		//					m_direction = m_desiredDirection;
-		//					m_isRotatingOnTheSpot = false;
-		//				}
-		//				else
-		//				{
-		//					m_rotAngleDiff -= m_turn_speed;
-		//					//transform.rotation =  Quaternion.Lerp();
-		//					transform.rotation = Quaternion.Slerp (Quaternion.LookRotation (m_direction), Quaternion.LookRotation (m_desiredDirection), 1 - m_rotAngleDiff / m_rotTemp);
-		//				}
-		//			}
-		//			else
-		//			{
+		if (GlobalScript.GetAngle (m_desiredDirection, m_direction) > 1f)
+		{
+			//m_angleDiff = Quaternion.Angle (Quaternion.LookRotation (m_desiredDirection), Quaternion.LookRotation (m_direction));
+			m_direction = Vector3.Slerp (m_direction, m_desiredDirection, m_angleDiff / (GlobalScript.GetAngle (m_direction, m_desiredDirection)));
+			transform.rotation = Quaternion.LookRotation (m_direction);
+		}
 	}
 
-	//private float m_angleThreshold = 60f;
 
 	//Move look ahead point
 	void UpdateLookAheadPoint()
@@ -181,15 +157,11 @@ public class MovementScript : MonoBehaviour {
 		{
 			if (GlobalScript.GetTwoLinesIntersection (transform.position, m_rawLookAheadPoint, m_prevWaypoint, m_currentWaypoint, ref m_intersectionPoint))
 			{
-//				float overflowAmount = Mathf.Min (lookAheadDistance * m_turn_speed,
-//					                       lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint));
 				float overflowAmount = lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint);
 
 				if (overflowAmount > 0)
 				{
 					overflowAmount = Mathf.Min (overflowAmount, lookAheadDistance * m_maxTurnSpeed);
-					//if (GlobalScript.GetAngle(m_direction,m_crossWpDirection) > 75)
-					print (overflowAmount);
 					m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * overflowAmount;
 					return;
 				}
@@ -218,7 +190,6 @@ public class MovementScript : MonoBehaviour {
 		{
 			m_thereIsAtLeastOneMoreWaypoint = true;
 
-			//m_crossWpDirection = GlobalScript.GetDirection (m_currentWaypoint, m_nextWaypoint);
 			m_crossWpDirection = GlobalScript.GetDirection (m_prevWaypoint, m_currentWaypoint);
 		} 
 		else
