@@ -46,7 +46,6 @@ public class MovementScript : MonoBehaviour {
 	//Boolean checks
 	private bool m_routeIsFinished = true;
 	private bool m_arrayReadingDirection = false;
-	private bool m_isTurningAround = false;
 	private bool m_isMoving = true;
 	#endregion
 
@@ -91,10 +90,6 @@ public class MovementScript : MonoBehaviour {
 				m_routeIsFinished = true;
 			else
 				m_routeIsFinished = false;
-
-
-			if (movementType == MovementType.reverse_loop)
-				m_isTurningAround = true;
 		}
 	}
 
@@ -125,7 +120,7 @@ public class MovementScript : MonoBehaviour {
 					if (m_waypointIsStrict && !m_workIsDone)
 					{
 						m_isDoingWork = true;
-						m_remainingWorkTime = m_totalWorkTime;
+						m_remainingWorkTime = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().m_workDuration;
 						m_speed = 0f;
 						if (m_animationScript)
 							m_animationScript.Stop ();
@@ -141,10 +136,11 @@ public class MovementScript : MonoBehaviour {
 		
 	void Move()
 	{
+		m_wpDistance = GlobalScript.GetDistance (transform.position, m_currentWaypoint);
 		UpdateLookAheadPoint ();
 		Rotate ();
 		m_prevFrameLocation = transform.position;
-		m_wpDistance = GlobalScript.GetDistance (transform.position, m_currentWaypoint);
+
 		AdjustSpeed ();
 		if (m_isMoving)
 		{
@@ -157,7 +153,7 @@ public class MovementScript : MonoBehaviour {
 		
 	void Rotate()
 	{
-		if (m_waypointIsStrict || m_isTurningAround)
+		if (m_waypointIsStrict)
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 		else
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
@@ -198,21 +194,18 @@ public class MovementScript : MonoBehaviour {
 				m_overflowAmount = lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint);
 				if (m_overflowAmount > 0)
 				{
-					m_overflowAmount = Mathf.Min (m_overflowAmount, m_speed * lookAheadDistance / 10);
-					m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * m_overflowAmount;
-					return;
+					if (GlobalScript.GetDistance (m_intersectionPoint, m_currentWaypoint) < m_wpDistance)
+					{
+						m_overflowAmount = Mathf.Min (m_overflowAmount, m_speed * lookAheadDistance / 10);
+						m_lookAheadPoint = m_intersectionPoint + m_crossWpDirection * m_overflowAmount;
+						return;
+					}
 				}
-				else
-				{
-					m_lookAheadPoint = GlobalScript.GetDirection (transform.position, m_currentWaypoint) * lookAheadDistance;
-					return;
-				}
+				m_lookAheadPoint = transform.position + GlobalScript.GetDirection (transform.position, m_currentWaypoint) * lookAheadDistance;
 			}
-		m_lookAheadPoint = m_rawLookAheadPoint;
 	}
 
 	private float m_remainingWorkTime;
-	private float m_totalWorkTime = 5f;
 	void DoWork()
 	{
 		m_remainingWorkTime -= Time.deltaTime;
@@ -234,8 +227,7 @@ public class MovementScript : MonoBehaviour {
 		{
 			return false;
 		}		 
-			
-		m_isTurningAround = false; 
+
 		m_prevWaypoint = m_currentWaypoint;
 		m_currentWaypoint = m_waypoints [m_currentWaypointIndex].transform.position;
 		m_crossWpDirection = GlobalScript.GetDirection (m_prevWaypoint, m_currentWaypoint);
