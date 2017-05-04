@@ -87,7 +87,7 @@ ModelImporter:
     400076: ToesEnd_R
     400078: Wrist_L
     400080: Wrist_R
-    7400000: Take 001
+    7400000: Run_Clip
     9500000: //RootNode
   materials:
     importMaterials: 1
@@ -111,7 +111,7 @@ ModelImporter:
     extraExposedTransformPaths: []
     clipAnimations:
     - serializedVersion: 16
-      name: Take 001
+      name: Run_Clip
       takeName: Take 001
       firstFrame: 1
       lastFrame: 21

@@ -10,10 +10,10 @@ public class MovementScript : MonoBehaviour {
 	public MovementType movementType;
 
 	//rough amount of movement per frame
-	public float m_speed;
+	public float m_speed = 0.5f;
 	//maximum degrees amount at which the object can rotate per frame
-	public float m_maxAngularRotationSpeed;
-	public float lookAheadDistance;
+	public float m_maxAngularRotationSpeed = 2f;
+	public float lookAheadDistance = 20f;
 	public bool m_drawGizmos;
 
 	//Waypoints
@@ -47,12 +47,17 @@ public class MovementScript : MonoBehaviour {
 	private bool m_isMoving = true;
 	#endregion
 
+	private WNS_AnimationControllerScript m_animationScript;
+
 	#region Initialization
 	// Use this for initialization
 	void Start () {
 		SetUpRoute ();
 		m_prevWaypoint = m_currentWaypoint;
 		m_desiredDirection = m_direction = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
+		m_animationScript = GetComponent<WNS_AnimationControllerScript> ();
+		if (m_animationScript == null)
+			print ("Animation is not linked");
 	}
 
 	public void SetUpRoute()
@@ -98,9 +103,26 @@ public class MovementScript : MonoBehaviour {
 	}
 	#endregion
 
+	bool dir = true;
+	public bool m_dynamicSpeedChange;
 	// Update is called once per frame
 	void Update ()
 	{
+		if (m_dynamicSpeedChange)
+		{
+			if (dir)
+			{
+				m_speed += 0.01f;
+				if (m_speed > 2f)
+					dir = !dir;
+			}
+			else
+			{
+				m_speed -= 0.01f;
+				if (m_speed < 0f)
+					dir = !dir;
+			}
+		}
 		if (!m_routeIsFinished)
 		{
 			Move ();
@@ -120,7 +142,12 @@ public class MovementScript : MonoBehaviour {
 		Rotate ();
 		m_prevFrameLocation = transform.position;
 		if (m_isMoving)
+		{
 			transform.position += m_direction * m_speed;
+			if (m_animationScript)
+					m_animationScript.HandleSpeedChange (GlobalScript.GetDistance (transform.position, m_prevFrameLocation));
+
+		}
 	}
 		
 	void Rotate()
@@ -224,7 +251,9 @@ public class MovementScript : MonoBehaviour {
 		{
 		case MovementType.path:
 			{
-					m_routeIsFinished = true;
+				m_routeIsFinished = true;
+					if (m_animationScript)
+						m_animationScript.Stop ();
 			}
 			break;
 		case MovementType.loop:
