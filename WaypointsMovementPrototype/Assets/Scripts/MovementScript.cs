@@ -11,6 +11,7 @@ public class MovementScript : MonoBehaviour {
 
 	//rough amount of movement per frame
 	public float m_speed = 0.5f;
+	private float m_maxSpeed;
 	//maximum degrees amount at which the object can rotate per frame
 	public float m_maxAngularRotationSpeed = 2f;
 	public float lookAheadDistance = 20f;
@@ -22,7 +23,9 @@ public class MovementScript : MonoBehaviour {
 	private Vector3 m_crossWpDirection;
 	private bool m_waypointIsStrict;
 	private float m_strictWpReachingDistance;
+	private float m_strictWpApproachingRange;
 	private float m_overflowAmount;
+	private float m_wpDistance;
 
 	//Custom points
 	private Vector3 m_intersectionPoint;
@@ -56,6 +59,7 @@ public class MovementScript : MonoBehaviour {
 		m_prevWaypoint = m_currentWaypoint;
 		m_desiredDirection = m_direction = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 		m_animationScript = GetComponent<WNS_AnimationControllerScript> ();
+		m_maxSpeed = m_speed;
 		if (m_animationScript == null)
 			print ("Animation is not linked");
 	}
@@ -103,44 +107,45 @@ public class MovementScript : MonoBehaviour {
 	}
 	#endregion
 
-	bool dir = true;
 	public bool m_dynamicSpeedChange;
+	private bool m_isDoingWork = false;
+	private bool m_workIsDone = true;
 	// Update is called once per frame
 	void Update ()
 	{
-		if (m_dynamicSpeedChange)
+		if (m_isDoingWork)
 		{
-			if (dir)
-			{
-				m_speed += 0.01f;
-				if (m_speed > 2f)
-					dir = !dir;
-			}
-			else
-			{
-				m_speed -= 0.01f;
-				if (m_speed < 0f)
-					dir = !dir;
-			}
+			DoWork ();
 		}
-		if (!m_routeIsFinished)
-		{
-			Move ();
-			if (CheckWaypointReaching ())
+		else if (!m_routeIsFinished)
 			{
-				if (!TryPickNewWaypoint ())
+				Move ();
+				if (CheckWaypointReaching ())
 				{
-					HandleRouteFinishing ();
+					if (m_waypointIsStrict && !m_workIsDone)
+					{
+						m_isDoingWork = true;
+						m_remainingWorkTime = m_totalWorkTime;
+						m_speed = 0f;
+						if (m_animationScript)
+							m_animationScript.Stop ();
+					}
+					else if (!TryPickNewWaypoint ())
+						{
+							HandleRouteFinishing ();
+						}
 				}
 			}
-		}
 	}
+
 		
 	void Move()
 	{
 		UpdateLookAheadPoint ();
 		Rotate ();
 		m_prevFrameLocation = transform.position;
+		m_wpDistance = GlobalScript.GetDistance (transform.position, m_currentWaypoint);
+		AdjustSpeed ();
 		if (m_isMoving)
 		{
 			transform.position += m_direction * m_speed;
@@ -157,13 +162,6 @@ public class MovementScript : MonoBehaviour {
 		else
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
 
-//		if (GlobalScript.GetAngle (m_desiredDirection, GlobalScript.GetDirection (transform.position, m_currentWaypoint)) > 120 &&
-//			GlobalScript.GetDistance(m_currentWaypoint,transform.position) > GlobalScript.GetDistance(m_currentWaypoint,m_prevFrameLocation))
-//		{
-//			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
-//			m_isMoving = false;
-//		}
-
 		if (!m_isMoving)
 			if (GlobalScript.GetAngle (m_desiredDirection, m_direction) < m_maxAngularRotationSpeed)
 				m_isMoving = true;
@@ -172,6 +170,21 @@ public class MovementScript : MonoBehaviour {
 		if (GlobalScript.GetAngle (m_desiredDirection, m_direction) > 1f)
 			m_direction = Vector3.Slerp (m_direction, m_desiredDirection, m_maxAngularRotationSpeed / (GlobalScript.GetAngle (m_direction, m_desiredDirection)));
 		transform.rotation = Quaternion.LookRotation (m_direction);
+	}
+
+	private float m_angleToDecelerationRatio = 1f/180f;
+	private float m_decelerationInfluenceFraction = 0.5f;
+
+	void AdjustSpeed()
+	{
+		if (m_dynamicSpeedChange)
+		{
+			m_speed = m_maxSpeed * (1f - m_decelerationInfluenceFraction *
+			Mathf.Min (GlobalScript.GetAngle (m_desiredDirection, m_direction), 180f) * m_angleToDecelerationRatio);
+
+			if (m_waypointIsStrict && m_wpDistance < m_strictWpApproachingRange)
+				m_speed = m_speed * (m_wpDistance / m_strictWpApproachingRange);
+		}
 	}
 
 	//Move look ahead point
@@ -198,6 +211,18 @@ public class MovementScript : MonoBehaviour {
 		m_lookAheadPoint = m_rawLookAheadPoint;
 	}
 
+	private float m_remainingWorkTime;
+	private float m_totalWorkTime = 5f;
+	void DoWork()
+	{
+		m_remainingWorkTime -= Time.deltaTime;
+		if (m_remainingWorkTime < 0)
+		{
+			m_isDoingWork = false;
+			m_workIsDone = true;
+		}
+	}
+
 	//Pick new waypoint
 	bool TryPickNewWaypoint()
 	{
@@ -221,7 +246,11 @@ public class MovementScript : MonoBehaviour {
 		{
 			m_waypointIsStrict = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().isStrict;
 			m_strictWpReachingDistance = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().reachingDistance;
+			m_strictWpApproachingRange = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().approachingRange;
 		}
+
+		if (m_waypointIsStrict)
+			m_workIsDone = false;
 
 		if (m_currentWaypointIndex == m_arrayLastIndex)
 			m_waypointIsStrict = true;
@@ -233,12 +262,12 @@ public class MovementScript : MonoBehaviour {
 	{
 		if (m_waypointIsStrict)
 		{
-			if (GlobalScript.GetDistance (transform.position, m_currentWaypoint) < m_strictWpReachingDistance)
+			if (m_wpDistance < m_strictWpReachingDistance)
 				return true;
 		}
 		else
 		{
-			if (GlobalScript.GetDistance (transform.position, m_currentWaypoint) < lookAheadDistance)
+				if (m_wpDistance < lookAheadDistance)
 				return true;
 		}
 			

@@ -27,8 +27,11 @@ public class GlobalScript : MonoBehaviour {
 	public static float GetAngle(Vector3 first, Vector3 second)
 	{
 		float dot = Vector3.Dot (first, second) / (first.magnitude * second.magnitude);
-		var acos = Mathf.Acos(dot);
-		return(acos*180/Mathf.PI);
+		float acos = Mathf.Acos(dot);
+		float res = acos * 180 / Mathf.PI;
+		if (float.IsNaN (res))
+			return 0;
+		return res;
 	}
 
 	public static bool GetTwoLinesIntersection(Vector3 dir_line_s, Vector3 dir_line_e, Vector3 wp_line_s, Vector3 wp_line_e, ref Vector3 intersectionPoint)

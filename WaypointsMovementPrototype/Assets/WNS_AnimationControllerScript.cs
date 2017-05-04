@@ -20,18 +20,6 @@ public class WNS_AnimationControllerScript : MonoBehaviour {
 		m_displacement = displacement;
 		if (m_animator)
 		{
-//			if (displacement > m_walkRunSpeedThreshold)
-//			{
-//				m_animator.SetBool ("IsRunning", true);
-//				m_animator.SetBool ("IsWalking", false);
-//				m_animator.SetFloat ("Speed", m_runSpeedCoeff * displacement);
-//			}
-//			else
-//			{
-//				m_animator.SetBool ("IsWalking", true);
-//				m_animator.SetBool ("IsRunning", false);
-//				m_animator.SetFloat ("Speed", m_walkSpeedCoeff * displacement);
-//			}
 			m_animator.SetFloat("Speed",m_speedCoeff * m_displacement);
 		}
 	}
@@ -40,8 +28,6 @@ public class WNS_AnimationControllerScript : MonoBehaviour {
 	{
 		if (m_animator)
 		{
-			m_animator.SetBool ("IsWalking", false);
-			m_animator.SetBool ("IsRunning", false);
 			m_animator.SetFloat ("Speed", 0f);
 		}
 	}
