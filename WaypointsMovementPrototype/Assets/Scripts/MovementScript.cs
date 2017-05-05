@@ -50,19 +50,27 @@ public class MovementScript : MonoBehaviour {
 	#endregion
 
 	private WNS_AnimationControllerScript m_animationScript;
+	private RVOUnity m_rvoScript;
 
-	#region Initialization
+
 	// Use this for initialization
 	void Start () {
 		SetUpRoute ();
 		m_prevWaypoint = m_currentWaypoint;
 		m_desiredDirection = m_direction = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 		m_animationScript = GetComponent<WNS_AnimationControllerScript> ();
+		m_rvoScript = GetComponent<RVOUnity> ();
 		m_maxSpeed = m_speed;
 		if (m_animationScript == null)
-			print ("Animation is not linked");
+			print ("Animation script it detached");
+
+		if (m_rvoScript == null)
+			print ("RVO script it detached");
+		else
+			RVOUnityMgr.GetInstance ("").SetCheckMoveFn (HandleCheckMoveFn);
 	}
 
+	#region Initialization
 	public void SetUpRoute()
 	{
 		if (m_waypoints.Length > 0)
@@ -142,21 +150,29 @@ public class MovementScript : MonoBehaviour {
 		m_prevFrameLocation = transform.position;
 
 		AdjustSpeed ();
+
+
 		if (m_isMoving)
 		{
 			transform.position += m_direction * m_speed;
-			if (m_animationScript)
-					m_animationScript.HandleSpeedChange (GlobalScript.GetDistance (transform.position, m_prevFrameLocation));
-
 		}
+		if (m_animationScript && !m_rvoScript)
+			m_animationScript.HandleSpeedChange (GlobalScript.GetDistance (transform.position, m_prevFrameLocation));
 	}
 		
+	private float m_angle;
+
 	void Rotate()
 	{
 		if (m_waypointIsStrict)
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 		else
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
+
+		m_angle = GlobalScript.GetAngle (m_rvoDir, m_desiredDirection);
+		//m_rvoDisp *= 0;
+		m_rvoWeight = Mathf.Clamp01 (m_rvoDisp / m_maxSpeed/5);
+		m_direction = m_rvoWeight * m_rvoDir + (1 - m_rvoWeight) * m_direction;
 
 		if (!m_isMoving)
 			if (GlobalScript.GetAngle (m_desiredDirection, m_direction) < m_maxAngularRotationSpeed)
@@ -175,11 +191,14 @@ public class MovementScript : MonoBehaviour {
 	{
 		if (m_dynamicSpeedChange)
 		{
-			m_speed = m_maxSpeed * (1f - m_decelerationInfluenceFraction *
-			Mathf.Min (GlobalScript.GetAngle (m_desiredDirection, m_direction), 180f) * m_angleToDecelerationRatio);
+			m_speed = m_maxSpeed * (1f - m_decelerationInfluenceFraction * m_angleToDecelerationRatio *
+			Mathf.Clamp (GlobalScript.GetAngle (m_desiredDirection, m_direction), 0f, 180f));
 
 			if (m_waypointIsStrict && m_wpDistance < m_strictWpApproachingRange)
-				m_speed = m_speed * (m_wpDistance / m_strictWpApproachingRange);
+				m_speed *= m_wpDistance / m_strictWpApproachingRange;
+
+			if (m_rvoScript && !float.IsNaN(m_rvoSpeedComp))
+				m_speed *= m_rvoSpeedComp;
 		}
 	}
 
@@ -189,6 +208,7 @@ public class MovementScript : MonoBehaviour {
 		m_rawLookAheadPoint = GlobalScript.PredictPointInDirection (transform.position, m_direction, lookAheadDistance);
 
 		if (!m_waypointIsStrict)
+		{
 			if (GlobalScript.GetTwoLinesIntersection (transform.position, m_rawLookAheadPoint, m_prevWaypoint, m_currentWaypoint, ref m_intersectionPoint))
 			{
 				m_overflowAmount = lookAheadDistance - GlobalScript.GetDistance (transform.position, m_intersectionPoint);
@@ -201,8 +221,9 @@ public class MovementScript : MonoBehaviour {
 						return;
 					}
 				}
-				m_lookAheadPoint = transform.position + GlobalScript.GetDirection (transform.position, m_currentWaypoint) * lookAheadDistance;
 			}
+			m_lookAheadPoint = transform.position + GlobalScript.GetDirection (transform.position, m_currentWaypoint) * lookAheadDistance;
+		}
 	}
 
 	private float m_remainingWorkTime;
@@ -244,8 +265,8 @@ public class MovementScript : MonoBehaviour {
 		if (m_waypointIsStrict)
 			m_workIsDone = false;
 
-		if (m_currentWaypointIndex == m_arrayLastIndex)
-			m_waypointIsStrict = true;
+//		if (m_currentWaypointIndex == m_arrayLastIndex)
+//			m_waypointIsStrict = true;
 		
 		return true;
 	}
@@ -259,7 +280,7 @@ public class MovementScript : MonoBehaviour {
 		}
 		else
 		{
-				if (m_wpDistance < lookAheadDistance)
+			if (m_wpDistance < lookAheadDistance)
 				return true;
 		}
 			
@@ -292,6 +313,57 @@ public class MovementScript : MonoBehaviour {
 		}
 	}
 
+	private float m_rvoSpeedComp = 1f;
+
+	private Vector3 m_a;
+	private float m_b;
+	private float m_c;
+
+	public void HandlePushBack(ref Vector3 rvoDisplacement, Vector3 previousFrameLocation)
+	{
+		m_rvoSpeedComp = 1 - GlobalScript.GetDistance (rvoDisplacement, transform.position) / GlobalScript.GetDistance (previousFrameLocation, transform.position);
+		m_rvoSpeedComp = Mathf.Clamp (m_rvoSpeedComp, 0f, 1f);
+		if (m_rvoSpeedComp == 0)
+		{
+			m_a = GlobalScript.GetDirection (previousFrameLocation, rvoDisplacement);
+			m_b = GlobalScript.GetDistance (rvoDisplacement, previousFrameLocation);
+			rvoDisplacement = previousFrameLocation + GlobalScript.GetDirection (previousFrameLocation, rvoDisplacement) *
+			GlobalScript.GetDistance (rvoDisplacement, previousFrameLocation) / 1;
+		}
+	}
+		
+	private Vector3 m_rvoDispPoint;
+	private Vector3 m_rvoDir;
+	private float m_rvoDisp;
+	private float m_rvoWeight;
+	private float m_rvoAngle;
+
+	bool HandleCheckMoveFn (GameObject _who, Vector3 _from, ref Vector3 _to)
+	{
+		if (_who.GetComponent<MovementScript> ().m_isDoingWork)
+			return false;
+//		if (_who.GetComponent<MovementScript>(). m_isMoving)
+//		{
+
+		_who.GetComponent<MovementScript> ().m_rvoDir = GlobalScript.GetDirection (transform.position, _to);
+//		_who.GetComponent<MovementScript> ().m_rvoDispPoint = _who.transform.position;
+		_who.GetComponent<MovementScript> ().m_rvoDisp = GlobalScript.GetDistance (_who.transform.position, _to);
+		_who.GetComponent<WNS_AnimationControllerScript> ().HandleSpeedChange (GlobalScript.GetDistance (_to, _from));
+//
+
+		if (GlobalScript.GetDistance (_from, _to) < 0.25f* _who.GetComponent<MovementScript> ().m_maxSpeed)
+			_to = _from;
+//		m_rvoAngle = GlobalScript.GetAngle (m_rvoDir, m_direction);
+//		if (m_rvoAngle > 170 && m_rvoDisp > m_maxSpeed / 2)
+//			_to = _from;
+//
+//			return true;
+//		}
+//		return false;
+
+
+		return true;
+	}
 
 	void OnDrawGizmos() {
 		if (m_drawGizmos)
@@ -300,13 +372,17 @@ public class MovementScript : MonoBehaviour {
 			Gizmos.DrawSphere (m_lookAheadPoint, 0.5f);
 			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
 			Gizmos.DrawCube (m_rawLookAheadPoint, Vector3.one);
+//
+//			Gizmos.color = Color.red;
+//			Gizmos.DrawSphere (m_intersectionPoint, 1f);
+//			Gizmos.DrawLine (m_intersectionPoint, transform.position);
 
-			Gizmos.color = Color.red;
-			Gizmos.DrawSphere (m_intersectionPoint, 1f);
-			Gizmos.DrawLine (m_intersectionPoint, transform.position);
+//			Gizmos.color = Color.yellow;
+//			Gizmos.DrawLine (m_prevWaypoint, m_currentWaypoint);
 
-			Gizmos.color = Color.yellow;
-			Gizmos.DrawLine (m_prevWaypoint, m_currentWaypoint);
+			Gizmos.color = Color.cyan;
+			Gizmos.DrawLine (transform.position, transform.position + lookAheadDistance* GlobalScript.GetDirection(transform.position,m_rvoDispPoint));
+			Gizmos.DrawSphere (m_rvoDispPoint + lookAheadDistance* GlobalScript.GetDirection(m_rvoDispPoint,transform.position), 2f);
 		}
 	}
 }

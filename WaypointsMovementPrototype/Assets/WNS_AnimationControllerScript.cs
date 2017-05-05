@@ -24,6 +24,16 @@ public class WNS_AnimationControllerScript : MonoBehaviour {
 		}
 	}
 
+	public void HandleSpeedChange(Vector3 rvoPosition, Vector3 originalPosition, Vector3 previousFramePosition)
+	{
+//		Vector3 fwDir = GlobalScript.GetDirection (previousFramePosition, originalPosition);
+//		Vector3 rvoDir = GlobalScript.GetDirection (previousFramePosition, rvoPosition);
+//		if (GlobalScript.GetAngle(fwDir,rvoDir) > 90)
+//			m_animator.SetFloat("Speed",0f);
+//		else
+//			m_animator.SetFloat("Speed",m_speedCoeff * GlobalScript.GetDistance(rvoPosition,previousFramePosition));
+	}
+
 	public void Stop()
 	{
 		if (m_animator)

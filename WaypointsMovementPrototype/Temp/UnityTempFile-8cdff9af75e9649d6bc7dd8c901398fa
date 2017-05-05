@@ -91,5 +91,6 @@
 'Assets/Scripts/RVO2/Simulator.cs'
 'Assets/Scripts/RVO2/Vector2.cs'
 'Assets/Scripts/WaypointScript.cs'
+'Assets/WNS_AnimationControllerScript.cs'
 -r:'/Applications/Unity/Unity.app/Contents/Mono/lib/mono/unity/System.Runtime.Serialization.dll'
 -r:'/Applications/Unity/Unity.app/Contents/Mono/lib/mono/unity/System.Xml.Linq.dll'

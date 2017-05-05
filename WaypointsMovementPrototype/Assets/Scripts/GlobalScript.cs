@@ -18,9 +18,11 @@ public class GlobalScript : MonoBehaviour {
 	}
 
 	public static float GetDistance(Vector3 p1, Vector3 p2){
-		Vector2 diff = p2 - p1;
+		Vector3 diff = p2 - p1;
 		diff.y = 0;
-		return (p2 - p1).magnitude;
+		if (float.IsNaN (diff.magnitude))
+			print ("NAN");
+		return diff.magnitude;
 	}
 		
 
@@ -61,10 +63,8 @@ public class GlobalScript : MonoBehaviour {
 		if (Mathf.Abs (z) < 0.0001)
 			z += wp_line_s.z;
 
-		x = Mathf.Max (x, Mathf.Min (wp_line_s.x, wp_line_e.x));
-		x = Mathf.Min (x, Mathf.Max (wp_line_s.x, wp_line_e.x));
-		z = Mathf.Max (z, Mathf.Min (wp_line_s.z, wp_line_e.z));
-		z = Mathf.Min (z, Mathf.Max (wp_line_s.z, wp_line_e.z));
+		x = Mathf.Clamp (x,Mathf.Min (wp_line_s.x, wp_line_e.x), Mathf.Max (wp_line_s.x, wp_line_e.x));
+		z = Mathf.Clamp (z, Mathf.Min (wp_line_s.z, wp_line_e.z), Mathf.Max (wp_line_s.z, wp_line_e.z));
 
 		intersectionPoint = new Vector3 (x, y, z);
 		return true;

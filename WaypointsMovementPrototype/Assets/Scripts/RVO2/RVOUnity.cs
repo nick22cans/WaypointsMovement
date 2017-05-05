@@ -230,6 +230,10 @@ public class RVOUnity : MonoBehaviour {
 	public bool m_drawGizmos;
 	private int m_id;
 	private bool m_lastMoveSuccessful;
+
+	private WNS_AnimationControllerScript m_animationScript;
+	private MovementScript m_WNSScript;
+
 	public int Id { get { return m_id; } }
 	void Start() {
 		Add();
@@ -237,7 +241,9 @@ public class RVOUnity : MonoBehaviour {
 			Debug.LogErrorFormat("RVO instance mismatch {0} {1}", m_instance.m_agents.Count, m_id);
 		m_instance.m_agents.Add(this);
 
-		SetupImpatienceValues();
+		m_animationScript = gameObject.GetComponent<WNS_AnimationControllerScript> ();
+		m_WNSScript = gameObject.GetComponent<MovementScript> (); 
+		m_pos = m_instance.GetAgentPosition (m_id);
 	}
 	public void Add() {
 		if (m_instance == null) {
@@ -308,14 +314,25 @@ public class RVOUnity : MonoBehaviour {
 			m_goalDirection = GetDirectionFromOnePointToAnother(m_pos, pos);
 			m_rvoDirection = GetDirectionFromOnePointToAnother (m_pos,transform.position);
 			m_rvoAngle = Mathf.Abs (GetAngleBetweenVectors (m_goalDirection, m_rvoDirection));
-			UpdateImpatience_v2(m_rvoAngle);
+			//UpdateImpatience_v2(m_rvoAngle);
 
+			if (GlobalScript.GetDistance (m_pos, pos) < 0.01f)
+				m_impatience += 0.01f;
+			else
+				m_impatience -= 0.01f;
+			m_impatience = Mathf.Clamp01 (m_impatience);
 			if (m_impatience > 0) 
 			{
 				pos = transform.position * m_impatience + pos * (1-m_impatience);
 				m_instance.SetAgentPosition(m_id, pos);
 			}
-			
+//
+//			if (m_WNSScript)
+//				m_WNSScript.HandlePushBack (ref pos, m_pos);
+//
+//			if (m_animationScript)
+//				m_animationScript.HandleSpeedChange (pos, transform.position, m_pos);
+
 			transform.position = pos;
 			m_instance.SetAgentPosition(m_id, pos);
 		}
@@ -328,64 +345,11 @@ public class RVOUnity : MonoBehaviour {
 	public enum ImpatienceMode { Disabled, Light, Medium, Strong};
 	public ImpatienceMode m_impatienceMode;
 
-	//Coefficient
-	private float m_impCoeff;
-	private float m_impSmall_Coeff;
-	private float m_impMedium_Coeff;
-	private float m_impHigh_Coeff;
-
-	//Threshold
-	private float m_impDispThreshold;
-	private float m_impSmall_DispThreshold;
-	private float m_impMedium_DispThreshold;
-	private float m_impHigh_DispThreshold;
 
 	private float m_rvoDisposition;
 	private float m_rvoDispOverflow;
 
-	void SetupImpatienceValues()
-	{
-		switch (m_impatienceMode)
-		{
-			case ImpatienceMode.Disabled:
-			break;
-			case ImpatienceMode.Light:
-				{
-					m_impSmall_Coeff = 0.005f;
-					m_impMedium_Coeff = 0.1f;
-					m_impHigh_Coeff = 0.2f;
 
-					m_impSmall_DispThreshold = 0.5f;
-					m_impMedium_DispThreshold = 0.7f;
-					m_impHigh_DispThreshold = 1.0f;
-				}
-			break;
-			case ImpatienceMode.Medium:
-				{
-					m_impSmall_Coeff = 0.005f;
-					m_impMedium_Coeff = 0.05f;
-					m_impHigh_Coeff = 0.1f;
-
-					m_impSmall_DispThreshold = 0.4f;
-					m_impMedium_DispThreshold = 0.6f;
-					m_impHigh_DispThreshold = 0.8f;
-				}
-			break;
-			case ImpatienceMode.Strong:
-				{
-					m_impSmall_Coeff = 0.001f;
-					m_impMedium_Coeff = 0.005f;
-					m_impHigh_Coeff = 0.1f;
-
-					m_impSmall_DispThreshold = 0.4f;
-					m_impMedium_DispThreshold = 0.5f;
-					m_impHigh_DispThreshold = 0.6f;
-				}
-			break;
-			default:
-			break;
-		}
-	}
 
 	private float m_impAngle_Threshold;
 	private float m_impAngle_SmallThreshold = 90;
@@ -416,36 +380,6 @@ public class RVOUnity : MonoBehaviour {
 			m_impatience = Mathf.Min (m_impatience, 1);
 		}
 	}
-
-	void UpdateImpatience(Vector3 pos)
-	{
-		if (m_impatienceMode != ImpatienceMode.Disabled)
-		{
-			m_rvoDisposition = GetDistanceBetweenPoints (pos, transform.position);
-
-			if (m_impatience < 0.25f)
-			{
-				m_impCoeff = m_impSmall_Coeff;
-				m_impDispThreshold = m_impSmall_DispThreshold;
-			}
-			else if (m_impatience < 0.5f)
-				{
-					m_impCoeff = m_impMedium_Coeff;
-					m_impDispThreshold = m_impMedium_DispThreshold;
-				}
-				else
-				{
-					m_impCoeff = m_impHigh_Coeff;
-					m_impDispThreshold = m_impHigh_DispThreshold;
-				}
-
-			m_rvoDispOverflow = m_rvoDisposition - m_impDispThreshold;
-			m_impatience += m_impCoeff * m_rvoDispOverflow;
-			m_impatience = Mathf.Max (m_impatience, 0);
-			m_impatience = Mathf.Min (m_impatience, 1);
-		}
-	}
-
 
 	void OnDestroy() {
 		if (m_instance != null)
