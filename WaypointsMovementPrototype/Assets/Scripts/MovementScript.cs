@@ -21,6 +21,7 @@ public class MovementScript : MonoBehaviour {
 	private Vector3 m_currentWaypoint;
 	private Vector3 m_prevWaypoint;
 	private Vector3 m_crossWpDirection;
+	private Vector3 m_currentWpDirection;
 	private bool m_waypointIsStrict;
 	private float m_strictWpReachingDistance;
 	private float m_strictWpApproachingRange;
@@ -130,6 +131,8 @@ public class MovementScript : MonoBehaviour {
 						m_isDoingWork = true;
 						m_remainingWorkTime = (m_waypoints [m_currentWaypointIndex]).GetComponent<WaypointScript> ().m_workDuration;
 						m_speed = 0f;
+					//transform.rotation = Quaternion.LookRotation (m_currentWpDirection);
+
 						if (m_animationScript)
 							m_animationScript.Stop ();
 					}
@@ -145,6 +148,7 @@ public class MovementScript : MonoBehaviour {
 	void Move()
 	{
 		m_wpDistance = GlobalScript.GetDistance (transform.position, m_currentWaypoint);
+		m_currentWpDirection = GlobalScript.GetDirection (transform.position, m_currentWaypoint);
 		UpdateLookAheadPoint ();
 		Rotate ();
 		m_prevFrameLocation = transform.position;
@@ -169,10 +173,12 @@ public class MovementScript : MonoBehaviour {
 		else
 			m_desiredDirection = GlobalScript.GetDirection (transform.position, m_lookAheadPoint);
 
-		m_angle = GlobalScript.GetAngle (m_rvoDir, m_desiredDirection);
-		//m_rvoDisp *= 0;
-		m_rvoWeight = Mathf.Clamp01 (m_rvoDisp / m_maxSpeed/5);
-		m_direction = m_rvoWeight * m_rvoDir + (1 - m_rvoWeight) * m_direction;
+//hardcoded prototype
+//		m_angle = (GlobalScript.GetAngle(m_rvoDir,m_desiredDirection) - 90)/180;
+//		m_angle = Mathf.Clamp01 (m_angle);
+//		m_angle = 1f;
+		m_rvoWeight = Mathf.Clamp01 (m_rvoDisp / m_maxSpeed)/2f;// * m_angle;
+		m_direction = (m_rvoWeight * m_rvoDir + (1 - m_rvoWeight) * m_direction).normalized;
 
 		if (!m_isMoving)
 			if (GlobalScript.GetAngle (m_desiredDirection, m_direction) < m_maxAngularRotationSpeed)
@@ -227,6 +233,7 @@ public class MovementScript : MonoBehaviour {
 	}
 
 	private float m_remainingWorkTime;
+	private int m_workLoopsFinished = 0;
 	void DoWork()
 	{
 		m_remainingWorkTime -= Time.deltaTime;
@@ -234,6 +241,7 @@ public class MovementScript : MonoBehaviour {
 		{
 			m_isDoingWork = false;
 			m_workIsDone = true;
+			m_workLoopsFinished++;
 		}
 	}
 
@@ -264,9 +272,6 @@ public class MovementScript : MonoBehaviour {
 
 		if (m_waypointIsStrict)
 			m_workIsDone = false;
-
-//		if (m_currentWaypointIndex == m_arrayLastIndex)
-//			m_waypointIsStrict = true;
 		
 		return true;
 	}
@@ -314,53 +319,32 @@ public class MovementScript : MonoBehaviour {
 	}
 
 	private float m_rvoSpeedComp = 1f;
-
-	private Vector3 m_a;
-	private float m_b;
-	private float m_c;
-
-	public void HandlePushBack(ref Vector3 rvoDisplacement, Vector3 previousFrameLocation)
-	{
-		m_rvoSpeedComp = 1 - GlobalScript.GetDistance (rvoDisplacement, transform.position) / GlobalScript.GetDistance (previousFrameLocation, transform.position);
-		m_rvoSpeedComp = Mathf.Clamp (m_rvoSpeedComp, 0f, 1f);
-		if (m_rvoSpeedComp == 0)
-		{
-			m_a = GlobalScript.GetDirection (previousFrameLocation, rvoDisplacement);
-			m_b = GlobalScript.GetDistance (rvoDisplacement, previousFrameLocation);
-			rvoDisplacement = previousFrameLocation + GlobalScript.GetDirection (previousFrameLocation, rvoDisplacement) *
-			GlobalScript.GetDistance (rvoDisplacement, previousFrameLocation) / 1;
-		}
-	}
 		
 	private Vector3 m_rvoDispPoint;
 	private Vector3 m_rvoDir;
 	private float m_rvoDisp;
 	private float m_rvoWeight;
-	private float m_rvoAngle;
 
 	bool HandleCheckMoveFn (GameObject _who, Vector3 _from, ref Vector3 _to)
 	{
+		MovementScript body = _who.GetComponent<MovementScript> ();
+
+		//block rvo if is doing work
 		if (_who.GetComponent<MovementScript> ().m_isDoingWork)
 			return false;
-//		if (_who.GetComponent<MovementScript>(). m_isMoving)
-//		{
 
-		_who.GetComponent<MovementScript> ().m_rvoDir = GlobalScript.GetDirection (transform.position, _to);
-//		_who.GetComponent<MovementScript> ().m_rvoDispPoint = _who.transform.position;
+		_who.GetComponent<MovementScript> ().m_rvoDir = GlobalScript.GetDirection (_who.transform.position, _to);
 		_who.GetComponent<MovementScript> ().m_rvoDisp = GlobalScript.GetDistance (_who.transform.position, _to);
-		_who.GetComponent<WNS_AnimationControllerScript> ().HandleSpeedChange (GlobalScript.GetDistance (_to, _from));
-//
+		_who.GetComponent<WNS_AnimationControllerScript>().HandleSpeedChange (GlobalScript.GetDistance (_to, _from));
 
+		//kill small rvo displacements 
+//hardcoded prototype
 		if (GlobalScript.GetDistance (_from, _to) < 0.25f* _who.GetComponent<MovementScript> ().m_maxSpeed)
 			_to = _from;
-//		m_rvoAngle = GlobalScript.GetAngle (m_rvoDir, m_direction);
-//		if (m_rvoAngle > 170 && m_rvoDisp > m_maxSpeed / 2)
-//			_to = _from;
-//
-//			return true;
-//		}
-//		return false;
 
+//		if (body.m_waypointIsStrict && GlobalScript.GetAngle(body.m_rvoDir,m_currentWpDirection) > 90)
+//			_to = _from;
+			
 
 		return true;
 	}
@@ -368,10 +352,10 @@ public class MovementScript : MonoBehaviour {
 	void OnDrawGizmos() {
 		if (m_drawGizmos)
 		{
-			Gizmos.color = Color.yellow;
-			Gizmos.DrawSphere (m_lookAheadPoint, 0.5f);
-			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
-			Gizmos.DrawCube (m_rawLookAheadPoint, Vector3.one);
+//			Gizmos.color = Color.yellow;
+//			Gizmos.DrawSphere (m_lookAheadPoint, 0.5f);
+//			Gizmos.DrawLine (m_lookAheadPoint, transform.position);
+//			Gizmos.DrawCube (m_rawLookAheadPoint, Vector3.one);
 //
 //			Gizmos.color = Color.red;
 //			Gizmos.DrawSphere (m_intersectionPoint, 1f);
@@ -381,8 +365,16 @@ public class MovementScript : MonoBehaviour {
 //			Gizmos.DrawLine (m_prevWaypoint, m_currentWaypoint);
 
 			Gizmos.color = Color.cyan;
-			Gizmos.DrawLine (transform.position, transform.position + lookAheadDistance* GlobalScript.GetDirection(transform.position,m_rvoDispPoint));
-			Gizmos.DrawSphere (m_rvoDispPoint + lookAheadDistance* GlobalScript.GetDirection(m_rvoDispPoint,transform.position), 2f);
+			Gizmos.DrawLine (transform.position, transform.position + m_desiredDirection * lookAheadDistance);
+			Gizmos.DrawSphere (transform.position + m_desiredDirection * lookAheadDistance, 1f);
+
+			Gizmos.color = Color.yellow;
+			Gizmos.DrawLine (transform.position, transform.position + m_direction * lookAheadDistance);
+			Gizmos.DrawSphere (transform.position + m_direction * lookAheadDistance, 1f);
+
+			Gizmos.color = Color.red;
+			Gizmos.DrawLine (transform.position, transform.position + m_rvoDir * lookAheadDistance);
+			Gizmos.DrawSphere (transform.position + m_rvoDir * lookAheadDistance, 1f);
 		}
 	}
 }
